@@ -87,7 +87,7 @@ export class SearchService {
 		private config: Config,
 
 		@Inject(DI.meilisearch)
-		private meilisearch: MeiliSearch | null,
+		private meilisearch: Meilisearch | null,
 
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
@@ -189,7 +189,7 @@ export class SearchService {
 				return this.searchNoteByLike(q, me, opts, pagination);
 			}
 			case 'meilisearch': {
-				return this.searchNoteByMeiliSearch(q, me, opts, pagination);
+				return this.searchNoteByMeilisearch(q, me, opts, pagination);
 			}
 			default: {
 				const _: never = this.provider;
@@ -247,14 +247,14 @@ export class SearchService {
 	}
 
 	@bindThis
-	private async searchNoteByMeiliSearch(
+	private async searchNoteByMeilisearch(
 		q: string,
 		me: MiUser | null,
 		opts: SearchOpts,
 		pagination: SearchPagination,
 	): Promise<MiNote[]> {
 		if (!this.meilisearch || !this.meilisearchNoteIndex) {
-			throw new Error('MeiliSearch is not available');
+			throw new Error('Meilisearch is not available');
 		}
 
 		const filter: Q = {
