@@ -419,7 +419,7 @@ export class ClientServerService {
 
 		// ナビゲーションバーの追加リンク
 		fastify.get('/links.json', async (request, reply) => {
-			return await reply.sendFile('/links.json', staticAssets);
+			return await reply.sendFile('/links.json', this.staticAssets);
 		});
 
 		// OpenSearch XML
