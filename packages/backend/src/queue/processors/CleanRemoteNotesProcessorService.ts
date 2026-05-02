@@ -11,6 +11,7 @@ import type { MiMeta, MiNote, NotesRepository } from '@/models/_.js';
 import type Logger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
+import { loadConfig } from '@/config.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 
@@ -86,7 +87,10 @@ export class CleanRemoteNotesProcessorService {
 		// - not have clipped
 		// - not have pinned on the user profile
 		// - not has been favorite by any user
-		const removalCriteria = [
+		// - not tagged with the default hashtag (treated as local content)
+		const config = loadConfig();
+		const defaultTag: string | null = config.defaultTag?.tag ?? null;
+		const removalCriteriaList = [
 			'note."id" < :newestLimit',
 			'note."clippedCount" = 0',
 			'note."pageCount" = 0',
@@ -94,17 +98,36 @@ export class CleanRemoteNotesProcessorService {
 			'NOT EXISTS (SELECT 1 FROM user_note_pining WHERE "noteId" = note."id")',
 			'NOT EXISTS (SELECT 1 FROM note_favorite WHERE "noteId" = note."id")',
 			'NOT EXISTS (SELECT 1 FROM note_reaction INNER JOIN "user" ON note_reaction."userId" = "user".id WHERE note_reaction."noteId" = note."id" AND "user"."host" IS NULL)',
-		].join(' AND ');
+		];
+		if (defaultTag != null) {
+			removalCriteriaList.push('NOT (note."tags" @> ARRAY[:defaultTag]::varchar[])');
+		}
+		const removalCriteria = removalCriteriaList.join(' AND ');
 
-		const minId = (await this.notesRepository.createQueryBuilder('note')
-			.select('MIN(note.id)', 'minId')
-			.where({
-				id: LessThan(initialConfig.newestLimit),
-				userHost: Not(IsNull()),
-				replyId: IsNull(),
-				renoteId: IsNull(),
-			})
-			.getRawOne<{ minId?: MiNote['id'] }>())?.minId;
+		let minId: MiNote['id'] | undefined;
+		try {
+			minId = (await this.notesRepository.createQueryBuilder('note')
+				.select('MIN(note.id)', 'minId')
+				.where({
+					id: LessThan(initialConfig.newestLimit),
+					userHost: Not(IsNull()),
+					replyId: IsNull(),
+					renoteId: IsNull(),
+				})
+				.getRawOne<{ minId?: MiNote['id'] }>())?.minId;
+		} catch (e) {
+			if (e instanceof QueryFailedError && e.driverError?.code === '57014') {
+				this.logger.warn('minId query timed out, skipping this run...');
+				return {
+					deletedCount: 0,
+					oldest: null,
+					newest: null,
+					skipped: false,
+					transientErrors: 0,
+				};
+			}
+			throw e;
+		}
 
 		if (!minId) {
 			this.logger.info('No notes can possibly be deleted, skipping...');
@@ -218,7 +241,7 @@ export class CleanRemoteNotesProcessorService {
 
 			try {
 				noteIds = await candidateNotesQuery({ limit: currentLimit }).setParameters(
-					{ newestLimit, cursorLeft },
+					{ newestLimit, cursorLeft, ...(defaultTag != null ? { defaultTag } : {}) },
 				).getRawMany<{ id: MiNote['id'], isRemovable: boolean, isBase: boolean }>();
 			} catch (e) {
 				if (e instanceof QueryFailedError && e.driverError?.code === '57014') {
@@ -227,15 +250,24 @@ export class CleanRemoteNotesProcessorService {
 					if (currentLimit <= minimumLimit) {
 						job.log('Local note tree complexity is too high, finding next root note...');
 
-						const idWindow = await this.notesRepository.createQueryBuilder('note')
-							.select('id')
-							.where('note.id > :cursorLeft')
-							.andWhere(removalCriteria)
-							.andWhere({ replyId: IsNull(), renoteId: IsNull() })
-							.orderBy('note.id', 'ASC')
-							.limit(minimumLimit + 1)
-							.setParameters({ cursorLeft, newestLimit })
-							.getRawMany<{ id?: MiNote['id'] }>();
+						let idWindow;
+						try {
+							idWindow = await this.notesRepository.createQueryBuilder('note')
+								.select('id')
+								.where('note.id > :cursorLeft')
+								.andWhere(removalCriteria)
+								.andWhere({ replyId: IsNull(), renoteId: IsNull() })
+								.orderBy('note.id', 'ASC')
+								.limit(minimumLimit + 1)
+								.setParameters({ cursorLeft, newestLimit, ...(defaultTag != null ? { defaultTag } : {}) })
+								.getRawMany<{ id?: MiNote['id'] }>();
+						} catch (e2) {
+							if (e2 instanceof QueryFailedError && e2.driverError?.code === '57014') {
+								job.log('idWindow query timed out, skipping this run...');
+								break;
+							}
+							throw e2;
+						}
 
 						job.log(`Skipped note IDs: ${idWindow.slice(0, minimumLimit).map(id => id.id).join(', ')}`);
 
@@ -274,7 +306,18 @@ export class CleanRemoteNotesProcessorService {
 			const deletableNoteIds = noteIds.filter(result => result.isRemovable).map(result => result.id);
 			if (deletableNoteIds.length > 0) {
 				try {
-					await this.notesRepository.delete(deletableNoteIds);
+					// Run DELETE under a relaxed statement_timeout. The global 10s timeout
+					// protects interactive API queries but is not viable for deleting large
+					// remote note trees; 5 minutes is enough for minimum-limit batches even
+					// on servers with millions of candidate rows.
+					await this.db.transaction(async (manager) => {
+						await manager.query("SET LOCAL statement_timeout = '300s'");
+						await manager.createQueryBuilder()
+							.delete()
+							.from(this.notesRepository.metadata.target)
+							.whereInIds(deletableNoteIds)
+							.execute();
+					});
 
 					for (const id of deletableNoteIds) {
 						const t = this.idService.parse(id).date.getTime();
@@ -293,6 +336,15 @@ export class CleanRemoteNotesProcessorService {
 					if (e instanceof QueryFailedError && e.driverError?.code?.startsWith('23')) {
 						transientErrors++;
 						job.log(`Error deleting notes: ${e} (transient race condition?)`);
+					} else if (e instanceof QueryFailedError && e.driverError?.code === '57014') {
+						// Statement timeout on DELETE. Reduce batch size and retry (without advancing cursorLeft).
+						if (currentLimit <= minimumLimit) {
+							job.log(`DELETE query timed out at minimum limit (${deletableNoteIds.length} notes), ending this run...`);
+							break;
+						}
+						currentLimit = Math.max(minimumLimit, Math.floor(currentLimit * 0.25));
+						job.log(`DELETE query timed out (${deletableNoteIds.length} notes), reducing limit to ${currentLimit} and retrying...`);
+						continue;
 					} else {
 						throw e;
 					}
