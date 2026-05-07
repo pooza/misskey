@@ -38,3 +38,5 @@
 - [プロキシアカウント無効化](https://github.com/pooza/misskey/pull/346)
 - [MFM→HTML変換で段落を`<p>`タグで囲む](https://github.com/pooza/misskey/issues/403)
   - Mastodon 4.2+のフッタータグ判定との互換性を確保
+- CleanRemoteNotesProcessorService へのスロークエリー対策
+- [drive_fileテーブルにインデックス追加](https://github.com/pooza/misskey/commit/7d3fb57fb5ffa9a78a7379a7a72b5c318c0acd2e)
