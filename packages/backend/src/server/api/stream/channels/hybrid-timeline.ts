@@ -14,7 +14,7 @@ import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import { normalizeForSearch } from '@/misc/normalize-for-search.js';
 import { loadConfig } from '@/config.js';
-import Channel, { type MiChannelService } from '../channel.js';
+import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
 
 @Injectable({ scope: Scope.TRANSIENT })
