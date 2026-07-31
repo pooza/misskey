@@ -10,7 +10,7 @@ import { type FastifyServerOptions } from 'fastify';
 import type * as Sentry from '@sentry/node';
 import type * as SentryVue from '@sentry/vue';
 import type { RedisOptions } from 'ioredis';
-import type { LogFormat, LogLevelSetting } from './logging/types.js';
+import type { AccessLogConfiguration, LogFormat, LogLevelSetting } from './logging/types.js';
 
 type RedisOptionsSource = Partial<RedisOptions> & {
 	host: string;
@@ -25,21 +25,6 @@ type SentryBackendConfig = {
 	options: Partial<Sentry.NodeOptions>;
 	enableNodeProfiling: boolean;
 	disabledIntegrations?: string[];
-};
-
-type OtelBackendConfig = {
-	endpoint?: string;
-	headers?: Record<string, string>;
-	sampleRate?: number;
-	capturePgSpans?: boolean;
-	capturePgStatement?: boolean;
-	capturePgConnectionSpans?: boolean;
-	captureRedisCommandSpans?: boolean;
-	captureRedisConnectionSpans?: boolean;
-	captureRedisRootSpans?: boolean;
-	resourceAttributes?: Record<string, string>;
-	propagateTraceToRemote?: boolean;
-	jobTraceContextMode?: 'link' | 'parent';
 };
 
 /**
@@ -91,7 +76,6 @@ type Source = {
 		append: boolean;
 	};
 	sentryForBackend?: SentryBackendConfig;
-	otelForBackend?: OtelBackendConfig;
 	sentryForFrontend?: {
 		options: Partial<SentryVue.BrowserOptions> & { dsn: string };
 		vueIntegration?: SentryVue.VueIntegrationOptions | null;
@@ -140,6 +124,7 @@ type Source = {
 		format?: LogFormat;
 		level?: LogLevelSetting;
 		domains?: Record<string, LogLevelSetting> | null;
+		access?: AccessLogConfiguration;
 		sql?: {
 			disableQueryTruncation?: boolean,
 			enableQueryParamLogging?: boolean,
@@ -209,6 +194,7 @@ export type Config = {
 		format?: LogFormat;
 		level?: LogLevelSetting;
 		domains?: Record<string, LogLevelSetting> | null;
+		access?: AccessLogConfiguration;
 		sql?: {
 			disableQueryTruncation?: boolean,
 			enableQueryParamLogging?: boolean,
@@ -239,7 +225,6 @@ export type Config = {
 	redisForTimelines: RedisOptions & RedisOptionsSource;
 	redisForReactions: RedisOptions & RedisOptionsSource;
 	sentryForBackend: SentryBackendConfig | undefined;
-	otelForBackend: OtelBackendConfig | undefined;
 	sentryForFrontend: {
 		options: Partial<SentryVue.BrowserOptions> & { dsn: string };
 		vueIntegration?: SentryVue.VueIntegrationOptions | null;
@@ -345,7 +330,6 @@ export function loadConfig(): Config {
 		redisForTimelines: config.redisForTimelines ? convertRedisOptions(config.redisForTimelines, host) : redis,
 		redisForReactions: config.redisForReactions ? convertRedisOptions(config.redisForReactions, host) : redis,
 		sentryForBackend: config.sentryForBackend,
-		otelForBackend: config.otelForBackend,
 		sentryForFrontend: config.sentryForFrontend,
 		id: config.id,
 		proxy: config.proxy,
