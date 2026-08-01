@@ -574,7 +574,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (this.config.defaultTag?.append && ['public', 'home'].includes(data.visibility)) {
 			if (this.config.defaultTag?.tag != null) {
 				const tag = `#${this.config.defaultTag?.tag}`;
-				if (String(data.text).match(tag)) {
+				if (!String(data.text).match(tag)) {
 					data.text = `${data.text}\n\n${tag}`;
 				}
 			}
