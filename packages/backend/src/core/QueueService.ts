@@ -81,8 +81,8 @@ const REPEATABLE_SYSTEM_JOB_DEF = [{
 	pattern: '30 * * * *',
 }, {
 	name: 'cleanRemoteNotes',
-	// 毎日午前4時に起動(最も人の少ない時間帯)
-	pattern: '0 4 * * *',
+	// 毎日午前2時に起動(最も人の少ない時間帯)
+	pattern: '0 2 * * *',
 }];
 
 function parseRedisInfo(infoText: string): Record<string, string> {
