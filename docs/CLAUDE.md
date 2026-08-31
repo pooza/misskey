@@ -182,7 +182,7 @@ API 仕様の正本は
 **その producer がツリーに存在しない**（`grep -rn '^name:' .github/workflows/*.yml` で確認できる）。
 つまり [AGENTS.md](../AGENTS.md) のチェック項目「backend API 変更時は
 `pnpm build-misskey-js-with-types` を実行して `packages/misskey-js/src/autogen/` の差分も
-commit する」を、**CI は一切検査していない**。⚠ **手で守るしかない。**
+commit する」を、**CI は一切検査していない**。⚠ **手で守るしかない**（#423）。
 
 したがって**品質の担保はローカル検証とレビューに寄っている**。レビュアーは
 **Codex**（`chatgpt-codex-connector[bot]`）と **CodeRabbit**（`.coderabbit.yaml`）。
@@ -267,6 +267,7 @@ jq -r '. as $all | $all[] | . as $c
 
 > 実測（2026-08-31・初回走査）: **未処理 9 件**。うち 4 件は **#401 / #406 の 2026-02〜03 のもので、
 > merged PR に付いたまま 5〜6 か月放置**されていた。**この走査を回すまで誰も気づいていなかった。**
+> 9 件は全件処理し、当てられない 2 件を #422 / #423 として起票した。
 
 ## 情報の記載先ルール
 
