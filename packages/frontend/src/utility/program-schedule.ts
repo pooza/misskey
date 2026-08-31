@@ -86,3 +86,19 @@ export function programScheduleLabel(opts: {
 
 	return `${datePart} ${startTime}`;
 }
+
+/**
+ * 2 つの時刻が同じローカル日付かどうか。
+ *
+ * ウィジェットが選択肢を組み立てたあと日付を跨いだかの判定に使う。UTC 換算で比べると
+ * 時差が入って境界がズレるので、ローカルの年月日で比べる。
+ *
+ * ⚠ これは Misskey 側だけに必要な関数。capsicum と Mastodon フォークは選択肢を都度
+ * 組み立て直すので持っていない。上の 3 者で揃える書式の話とは無関係なので、
+ * 「向こうに無い」を理由に消さないこと。
+ */
+export function isSameLocalDate(a: Date, b: Date): boolean {
+	return a.getFullYear() === b.getFullYear()
+		&& a.getMonth() === b.getMonth()
+		&& a.getDate() === b.getDate();
+}

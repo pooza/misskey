@@ -35,7 +35,8 @@ import MkSelect from '@/components/MkSelect.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
-import { programScheduleLabel } from '@/utility/program-schedule.js';
+import { useInterval } from '@@/js/use-interval.js';
+import { isSameLocalDate, programScheduleLabel } from '@/utility/program-schedule.js';
 
 type Program = {
 	enable?: boolean;
@@ -111,30 +112,55 @@ const buildLabel = (p: Program, now: Date): string => {
 	return label.join(' ');
 };
 
+// 選択肢を組み立て直す。`now` はここで 1 回だけ取り、全エントリで使い回す。
+// 組み立てた時点の日付を `builtOn` に控えておき、日付を跨いだら組み直す（下の
+// `useInterval`）。
+let builtOn: Date | null = null;
+
+const rebuildOptions = () => {
+	const next: SelectItem[] = [
+		{ value: 'clear_tags', label: dic.clearTags },
+	];
+
+	const now = new Date();
+	for (const k of Object.keys(programs.value).filter(k => programs.value[k]?.enable)) {
+		const v = programs.value[k]!;
+		next.push({ value: k, label: buildLabel(v, now) });
+	}
+
+	next.push({ value: 'episode_browser', label: dic.episodeBrowser });
+
+	options.value = next;
+	builtOn = now;
+};
+
 const getPrograms = async () => {
 	try {
-		const next: SelectItem[] = [
-			{ value: 'clear_tags', label: dic.clearTags },
-		];
-
 		await window.fetch('/mulukhiya/api/program/update', { method: 'POST' });
 		const res = await window.fetch('/mulukhiya/api/program');
 		const json = await res.json() as Record<string, Program>;
 		programs.value = json;
 
-		const now = new Date();
-		for (const k of Object.keys(programs.value).filter(k => programs.value[k]?.enable)) {
-			const v = programs.value[k]!;
-			next.push({ value: k, label: buildLabel(v, now) });
-		}
-
-		next.push({ value: 'episode_browser', label: dic.episodeBrowser });
-
-		options.value = next;
+		rebuildOptions();
 	} catch (e: any) {
 		os.alert({ type: 'error', title: dic.fetch, text: e?.message ?? String(e) });
 	}
 };
+
+// 日付を跨いだらラベルを組み直す（#419）。ウィジェットは一度組み立てた選択肢を保持し
+// 続けるので、これが無いと SPA を開いたまま日付を跨いだとき「今日」が昨日の枠を指した
+// ままになる。番組表そのものは取り直さない（再取得は上のリロードボタン）。
+//
+// `useInterval` は非アクティブなタブでは止まり、復帰時に interval 以上経過していれば
+// 即座に 1 回呼ぶので、バックグラウンドで日付を跨いだ場合も戻った時点で追いつく。
+useInterval(() => {
+	if (builtOn == null) return; // まだ一度も取得できていない
+	if (isSameLocalDate(builtOn, new Date())) return;
+	rebuildOptions();
+}, 1000 * 60, {
+	immediate: false,
+	afterMounted: true,
+});
 
 const setPrograms = async () => {
 	const selected = programSelected.value as string | undefined;

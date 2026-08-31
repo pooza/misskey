@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { parseProgramNextOn, parseProgramStartTime, programScheduleLabel } from '@/utility/program-schedule.js';
+import { isSameLocalDate, parseProgramNextOn, parseProgramStartTime, programScheduleLabel } from '@/utility/program-schedule.js';
 
 // #419: 実況タグセットの選択肢に出す放送日時ラベル。
 //
@@ -109,5 +109,23 @@ describe('parseProgramStartTime', () => {
 		expect(parseProgramStartTime('12:60')).toBeNull();
 		expect(parseProgramStartTime('1230')).toBeNull();
 		expect(parseProgramStartTime(undefined)).toBeNull();
+	});
+});
+
+// ウィジェットが選択肢を組み立てたあと日付を跨いだかの判定（#419）。SPA を開いたまま
+// 日付を跨ぐと「今日」が昨日の枠を指したままになるので、ここが境界を正しく見ないと
+// ラベルが組み直されない。
+describe('isSameLocalDate', () => {
+	test('同じローカル日付なら時刻が離れていても true', () => {
+		expect(isSameLocalDate(new Date(2026, 7, 9, 0, 0), new Date(2026, 7, 9, 23, 59))).toBe(true);
+	});
+
+	test('日付を跨げば 2 分差でも false', () => {
+		expect(isSameLocalDate(new Date(2026, 7, 9, 23, 59), new Date(2026, 7, 10, 0, 1))).toBe(false);
+	});
+
+	test('月・年だけが違う場合も false', () => {
+		expect(isSameLocalDate(new Date(2026, 7, 9), new Date(2026, 8, 9))).toBe(false);
+		expect(isSameLocalDate(new Date(2026, 7, 9), new Date(2027, 7, 9))).toBe(false);
 	});
 });
