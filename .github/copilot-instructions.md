@@ -4,6 +4,8 @@
 
 リポジトリは Misskey の pnpm workspace モノレポ。主要な実装は `packages/backend` (NestJS / TypeORM) と `packages/frontend` (Vue 3) にある。より詳しいガイドはリポジトリルートの `AGENTS.md` を参照してよいが、このファイルの要件を省略してそちらへの参照だけで済ませないこと。
 
+⚠ **これは misskey-dev/misskey のフォーク** (`pooza/misskey`、デフォルトブランチ `daisskey`)。upstream に無い独自機能・周辺サービス連携・CI の実態は [docs/CLAUDE.md](../docs/CLAUDE.md) にまとめてある。**upstream の慣習をそのまま当てはめる前に確認すること** (locale / CHANGELOG に例外がある。下記)。
+
 ## 絶対にやってはいけない事
 
 違反すると CI 失敗 / 本番事故 になる。

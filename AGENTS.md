@@ -8,6 +8,8 @@
 
 人間 contributor 向けの一般規約 (Issue / PR の出し方、ActivityPub 拡張など) は [CONTRIBUTING.md](CONTRIBUTING.md) を参照。本ファイルは AI が **コードを書く・直す・出す** 際に踏み外してはいけない事項に絞る。
 
+**このリポジトリはフォーク** (`pooza/misskey`、デフォルトブランチ `daisskey`) で、upstream に無い機能と周辺サービス連携を持つ。**背景・独自改変・モロヘイヤ連携・CI の実態は [docs/CLAUDE.md](docs/CLAUDE.md) が正本。**本ファイルが「守るべき手順」を持ち、docs/CLAUDE.md が「なぜそうなっているか」を持つ。作業前に一度目を通すこと。
+
 ---
 
 ## 絶対にやってはいけない事
