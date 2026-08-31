@@ -17,6 +17,48 @@
 エージェント向けの禁止事項と出荷前チェックは [AGENTS.md](../AGENTS.md) と `.claude/skills/` が正本。
 **手順はそちら、背景はこちら**と使い分ける。
 
+## フロントエンドは 3 つ
+
+このインフラでフロントエンドにあたるのは
+[pooza/mastodon](https://github.com/pooza/mastodon) /
+**このフォーク** /
+[pooza/capsicum](https://github.com/pooza/capsicum) の 3 つ。
+⚠ **capsicum はこのサーバーの推奨クライアント**でもある。
+
+3 者はモロヘイヤ（[pooza/mulukhiya-toot-proxy](https://github.com/pooza/mulukhiya-toot-proxy)）を
+共通の土台にしており、**表示書式を共有するものがある**（→「3 クライアントで表示書式を揃える」）。
+
+### 🔴 capsicum に「ダイスキー専用の分岐」を作らせない
+
+⚠⚠ **capsicum がこの Misskey と他の Misskey で扱いを変える必要は、原則として無いようにする。**
+
+つまり **capsicum 側で「接続先がダイスキーかどうか」を判定させる設計を選ばない。**
+capsicum は汎用の Misskey / Mastodon クライアントであって、このサーバーの専用クライアントではない。
+
+いま守られている形（capsicum の実装で確認できる）:
+
+- モロヘイヤの有無は `GET /mulukhiya/api/about` の**存在検出**で決める
+  （`capsicum_backends/lib/src/mulukhiya/service.dart`）
+- 個別機能は**モロヘイヤが返す `features.*` フラグ**で出し分ける
+  （`features.annict_review` / `features.media_update` など）
+- Misskey 本体との連携は **probing ベース**なので、機能が無ければ自動的に degrade する
+
+⚠ **分岐してよいのは「モロヘイヤが居るか」「その機能フラグが立っているか」まで。**
+「サーバーがダイスキーか」で分けた瞬間、capsicum が汎用クライアントでなくなる。
+
+### だから機能はモロヘイヤへ寄せる
+
+⚠⚠ **追加機能は極力モロヘイヤに寄せ、やむを得ない場合だけ Misskey 本体（このフォーク）を直接修正する。**
+
+モロヘイヤに置けば、3 つのフロントエンドすべてが同じ経路（`/mulukhiya/api/*` と `features.*`）で
+拾える。フォーク本体に置くと、**upstream 追従の負債になるうえ、capsicum からは
+「ダイスキーだけ挙動が違う」ようにしか見えない**。
+
+判断基準の正本はモロヘイヤ側
+[docs/CLAUDE.md](https://github.com/pooza/mulukhiya-toot-proxy/blob/main/docs/CLAUDE.md)。
+⚠ 例外は「モロヘイヤが SNS の DB へ書き込むことになる場合」で、そのときは本体改造を採る
+（→「モロヘイヤとの連携」）。
+
 ## ブランチ戦略
 
 | ブランチ | 用途 |
@@ -184,6 +226,13 @@ API 仕様の正本は
 `pnpm build-misskey-js-with-types` を実行して `packages/misskey-js/src/autogen/` の差分も
 commit する」を、**CI は一切検査していない**。⚠ **手で守るしかない**（#423）。
 
+🔴 **これは capsicum に波及する。** capsicum は
+[docs/misskey-capsicum-api-watch.md](https://github.com/pooza/capsicum/blob/main/docs/misskey-capsicum-api-watch.md)
+の手順で **`daisskey` の `packages/misskey-js/src/autogen/entities.ts` /
+`endpoint.ts` を diff** して API 影響をトリアージしている。⚠⚠ **再生成を忘れると、
+capsicum 側は古い契約を見て「変化なし」と判定する。**このフォークの autogen は
+自分のためだけのものではない。
+
 したがって**品質の担保はローカル検証とレビューに寄っている**。レビュアーは
 **Codex**（`chatgpt-codex-connector[bot]`）と **CodeRabbit**（`.coderabbit.yaml`）。
 
@@ -289,7 +338,7 @@ chubo2 の
 
 - [pooza/mulukhiya-toot-proxy](https://github.com/pooza/mulukhiya-toot-proxy) — 併用プロキシ（モロヘイヤ）
 - [pooza/mastodon](https://github.com/pooza/mastodon) — Mastodon フォーク（`bshockdon`）。姉妹実装
-- [pooza/capsicum](https://github.com/pooza/capsicum) — Flutter クライアント。表示書式の先行実装
+- [pooza/capsicum](https://github.com/pooza/capsicum) — Flutter クライアント。**このサーバーの推奨クライアント**。表示書式の先行実装。⚠ ダイスキー専用の分岐は作らない
 - [pooza/chubo2](https://github.com/pooza/chubo2) — インフラ情報・レシピ（プライベート）
 - [misskey-dev/misskey](https://github.com/misskey-dev/misskey) — upstream
 
