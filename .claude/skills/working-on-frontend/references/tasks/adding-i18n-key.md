@@ -5,6 +5,7 @@ UI 文言の追加・変更を行う際の手順。**手動編集して良いの
 ## 大前提 (絶対 NG)
 
 - **`locales/<lang>.yml` (ja-JP.yml 以外) の編集は禁止**。これらは Crowdin の自動配信先で、手動編集すると次の同期で上書き喪失する ([locales/README.md](../../../../../locales/README.md), [crowdin.yml](../../../../../crowdin.yml))
+  - ⚠ **例外: フォーク独自キーだけは `en-US.yml` にも手で足す** (`_tagset` など、upstream にも Crowdin にも無いキー)。[packages/i18n/src/index.ts](../../../../../packages/i18n/src/index.ts) の `build()` が `case 'en-US': merge(ja-JP, en-US)` なので、**en-US に無いキーは日本語のまま英語 UI に出る**。Crowdin プロジェクトは upstream (misskey-dev) 側にあり、フォークの独自キーは配信対象にならないので足さない限り永久に埋まらない。upstream にもあるキーの翻訳を直すのは従来どおり禁止
 - 文字列リテラルを SFC に直書きしない (`<span>こんにちは</span>` 等)。必ず `i18n.ts.<key>` を経由する
 - 既存キーの破壊的リネームは Crowdin 翻訳資産を失わせる。**追加 → 移行 → 旧キー削除** の 3 段階に分割する。詳細手順と誤編集の復旧は [knowledge/i18n-usage.md §Crowdin 安全策](../knowledge/i18n-usage.md)
 
@@ -83,7 +84,8 @@ pnpm --filter i18n lint
 pnpm --filter frontend lint
 
 # 他言語 yml に diff が出ていないことを確認 (出力が空であれば OK)
-git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'
+# フォーク独自キーを足した場合は locales/en-US.yml だけが出る。これは例外として OK
+git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'
 ```
 
 **注意:** `grep -v 'ja-JP.yml'` を **diff 本文** に当てると ja-JP.yml 単体の変更でも `+追加行` が素通りして必ず非空になる。`--name-only` でファイル名だけに絞ってから完全一致で除外するのが正しい。

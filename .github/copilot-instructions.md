@@ -31,6 +31,7 @@
   `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)。
 
 - **`locales/ja-JP.yml` 以外の locale YAML を編集しない**。他言語ファイル (`en-US.yml` など `ja-JP.yml` 以外すべて) は Crowdin の自動配信先で、手動編集すると次の同期で上書き喪失する。
+  ⚠ **例外: フォーク独自キー (`_tagset` 等、upstream にも Crowdin にも無いキー) だけは `en-US.yml` にも手で足す。** `packages/i18n/src/index.ts` の `build()` が `case 'en-US': merge(ja-JP, en-US)` なので、en-US に無いと日本語のまま英語 UI に出る。upstream にもあるキーの翻訳修正は従来どおり禁止。
 - **マージ済 migration を編集しない**。`packages/backend/migration/{timestamp}-*.js` のうち既に `develop` / `master` に入ったものは絶対に変更しない。スキーマ変更が必要なら新しい timestamp で新規ファイルを追加し、`up()` と `down()` の両方を実装する。
 - **secrets / 認証情報をリポジトリにコミットしない** (`.config/*.yml` の本番値、`.env` ファイル、API token、private key 等)。
 
@@ -54,7 +55,8 @@
 3. entity / migration を変更した → `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた
 5. ユーザー影響のある変更 → `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-6. `locales/` を編集した場合、`git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空 (ja-JP.yml 以外に差分が無い) ことを確認
+   ⚠ **例外: フォーク独自機能 (`WidgetTagset` 等、upstream に無いもの) だけの変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。
+6. `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空であることを確認 (`locales/en-US.yml` だけが出ていて、その差分がフォーク独自キーに閉じている場合は OK)
 
 ## Validation コマンド
 

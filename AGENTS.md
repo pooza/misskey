@@ -43,6 +43,10 @@
 2. **`locales/ja-JP.yml` 以外の locale YAML を手動編集しない**
    - 他言語ファイル (`en-US.yml` など `ja-JP.yml` 以外すべて) は Crowdin の自動配信先。手動編集すると次の同期で上書き喪失する
    - 根拠: [locales/README.md](locales/README.md) と [crowdin.yml](crowdin.yml) (`ja-JP.yml` → `locales/%locale%.yml` の同期設定)
+   - **⚠ 例外: フォーク独自キーだけは `en-US.yml` にも手で足す** (`_tagset` など、upstream にも Crowdin にも存在しないキー)
+     - 理由: [packages/i18n/src/index.ts](packages/i18n/src/index.ts) の `build()` は `case 'en-US': merge(ja-JP, en-US)` なので、**en-US に無いキーは日本語のまま英語 UI に出る**。Crowdin プロジェクトは upstream (misskey-dev) 側にあり、このフォークの独自キーは配信対象にならないため、足さない限り永久に埋まらない
+     - 前例: `_tagset` ブロックは de5424e13c (#384) で `en-US.yml` に手で追加され、以降の upstream 追従 (2026.6.0 / 2026.7.0) を無事に通過している
+     - **この例外は独自キーに閉じる。** upstream にも存在するキーの翻訳を `en-US.yml` で直すのは従来どおり禁止 (Crowdin に上書きされる)
 
 3. **マージ済 migration ファイルを編集しない**
    - 対象: `packages/backend/migration/{unixMs}-{name}.js` のうち、既に `develop` / `master` にマージされたもの
@@ -85,7 +89,13 @@
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)
 5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-6. **locale safety**: `locales/` を編集した場合、`git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空 (ja-JP.yml 以外に差分が無い) ことを確認
+   - **⚠ 例外: フォーク独自機能だけの変更では追記しない** (`WidgetTagset` など、upstream に存在しないもの)
+     - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない
+     - 前例: フォーク側のコミットで `CHANGELOG.md` を編集したものは 1 件も無い
+   - upstream にも影響する変更 (upstream へ PR を出す前提のもの) は従来どおり追記する
+6. **locale safety**: `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` の出力が空であることを確認
+   - 出力が `locales/en-US.yml` **だけ** で、その差分がフォーク独自キー (`_tagset` 等) に閉じている場合は OK (上記「絶対にやってはいけない事」#2 の例外)。それ以外のファイルが出たら止める
+   - ⚠ 比較先は **`daisskey`** (このフォークのベースブランチ)。`develop` は upstream 追従用なので、そこと比べるとフォーク独自キーが丸ごと差分に出てしまう
 
 ### Validation commands
 
