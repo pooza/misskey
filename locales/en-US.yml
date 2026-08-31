@@ -2953,6 +2953,8 @@ _tagset:
   episodeSuffix: ""
   confirmMessage: "Is this program correct?"
   successMessage: "Commands for fixed tags were sent."
+  today: "Today"
+  tomorrow: "Tomorrow"
 
 _abuseReport:
   _notificationRecipient:

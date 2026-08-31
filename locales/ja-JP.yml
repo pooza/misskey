@@ -3049,6 +3049,8 @@ _tagset:
   episodeSuffix: "話"
   confirmMessage: "この番組でよろしいでしょうか？"
   successMessage: "固定タグ用コマンドを送信しました。"
+  today: "今日"
+  tomorrow: "明日"
 
 _moderationLogTypes:
   clearQueue: "ジョブキューをクリア"
