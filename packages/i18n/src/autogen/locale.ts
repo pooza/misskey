@@ -11496,6 +11496,14 @@ export interface Locale extends ILocale {
          * 固定タグ用コマンドを送信しました。
          */
         "successMessage": string;
+        /**
+         * 今日
+         */
+        "today": string;
+        /**
+         * 明日
+         */
+        "tomorrow": string;
     };
     "_moderationLogTypes": {
         /**
