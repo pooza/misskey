@@ -175,15 +175,98 @@ API 仕様の正本は
 ⚠ **このフォークの `.github/workflows/` は upstream から大きく削られている。**
 `packages/backend` / `packages/frontend` の **lint も test も CI では走らない**
 （唯一の lint/test ジョブ `packages-private.yml` は `packages-private/` のみが対象）。
-残っているのは診断系（backend/frontend diagnostics、misskey-js autogen チェック）。
+残っているのは診断系（backend / frontend diagnostics）だけ。
 
-したがって**品質の担保はローカル検証とレビューに寄っている**:
+🔴 **`check-misskey-js-autogen` は死んでいる。** `check-misskey-js-autogen.comment.yml` は
+`workflow_run` で `Check Misskey JS autogen` という名前のワークフローの完了を待つが、
+**その producer がツリーに存在しない**（`grep -rn '^name:' .github/workflows/*.yml` で確認できる）。
+つまり [AGENTS.md](../AGENTS.md) のチェック項目「backend API 変更時は
+`pnpm build-misskey-js-with-types` を実行して `packages/misskey-js/src/autogen/` の差分も
+commit する」を、**CI は一切検査していない**。⚠ **手で守るしかない。**
 
-- **Codex**（`chatgpt-codex-connector` bot）が PR に自動レビューを付ける。
-  `@codex review` で再レビューを依頼できる。P1 は修正して再レビュー、P2 は修正のみ
-- **CodeRabbit**（`.coderabbit.yaml`）
-- ⚠ Codex は `AGENTS.md` を行番号付きで引用してくる。**規約と実態が食い違っていると
-  毎回同じ指摘が出る**ので、実態が正しいなら AGENTS.md 側を直す
+したがって**品質の担保はローカル検証とレビューに寄っている**。レビュアーは
+**Codex**（`chatgpt-codex-connector[bot]`）と **CodeRabbit**（`.coderabbit.yaml`）。
+
+## Codex のレビュー
+
+運用は [pooza/ginseng-style の docs/workflow.md](https://github.com/pooza/ginseng-style/blob/main/docs/workflow.md)
+「Codex のレビュー」節を踏襲する。**そちらが正本**で、ここには**このリポジトリ固有の事情**だけ書く。
+⚠ Codex 名で書いてあるが、自動レビュー全般に効く。
+
+### 採否を決める
+
+⚠⚠ **妥当かどうかは毎回測るしかない。**指摘は遅れて届く。
+
+| 判定 | やること | 再レビュー |
+| --- | --- | --- |
+| **P1・妥当** | 修正する | ⚠ **`@codex review` を投げる** |
+| **P2・妥当** | 修正する | 不要 |
+| **妥当でない** | 修正しない | 不要。⚠⚠ **👎 に反証の実測を添える** |
+| **妥当だが当てられない / この PR では直さない**（P2 以下） | **Issue に切る**。⚠⚠ **返信に番号を書く** | 不要 |
+
+⚠ P0 は P1 と同じ、P3 は P2 と同じ扱い。🔴 **P0 / P1 を「当てられない」に落とさない。**
+
+⚠⚠ **Issue を立てずに返信して 👍 を付けない。**走査は返信と 👍 / 👎 しか見ないので、
+**直っていないものが完了として消える**。
+
+⚠ **このリポジトリでは Issue の起票にゲートがある** → [creating-issues-and-prs スキル](../.claude/skills/creating-issues-and-prs/SKILL.md)。
+**原則として人間が起票する。**AI が勝手に立てない。立てられないうちは 👍 を付けずに残す。
+
+### ⚠⚠ このフォーク固有の落とし穴 — Codex は upstream の慣習を当ててくる
+
+🔴 **Codex は 1 リポジトリしか見ていない。**周辺リポジトリに正本がある事情を「無い」と読む。
+このフォークでは次が実際に誤指摘として出た（2026-08-31 / PR #420）:
+
+| 指摘 | なぜ成立しないか |
+| --- | --- |
+| 「`en-US.yml` を手編集するな。Crowdin が上書きする」 | Crowdin プロジェクトは **upstream 側**にあり、フォーク独自キー（`_tagset` 等）は配信対象外。足さないと英語 UI に日本語が出る |
+| 「`CHANGELOG.md` に追記しろ」 | `## Unreleased` が存在せず、`CHANGELOG.md` は upstream 所有。フォーク独自機能のエントリは追従のたびに衝突する |
+
+⚠⚠ **どちらも `AGENTS.md` を行番号付きで引用してきた。規約と実態が食い違っていると毎回同じ
+指摘が出る**ので、**実態が正しいなら AGENTS.md 側を直す**（PR #420 で実施）。
+
+⚠ **逆に、Codex がフォークの事情を知らないことは「指摘が外れている」根拠にはならない。**
+上の 2 件は**実測して**成立しないと判断した。同じ PR の P2（深夜跨ぎでラベルが古くなる）は成立した。
+
+### 🔴 「指摘なし」の測り方 — 出方が 3 通りある
+
+| 結果 | どこに出るか |
+| --- | --- |
+| 指摘あり | `pulls/N/comments`（行紐づき） |
+| 指摘なし | `issues/N/comments` に 1 本（`Didn't find any major issues.`）。⚠ **review は作られない** |
+| 🔴 指摘なし | **PR 本体への 👍**（`issues/N/reactions`）。⚠⚠ review でもコメントでもない |
+
+⚠ **`.reviews[]` だけを見ると「レビュー 0 件」に見える。**走査は 4 経路すべてを見る。
+🔴 **👍 は「この PR に指摘が無かった」ではなく「ある巡が指摘なしで終わった」だけ。**
+
+### 取り残さない
+
+**返信と 👍 / 👎 の両方が揃って完了。**⚠⚠ **PR を出したセッションは、締める直前にもう一度走査する。**
+
+⚠ **窓を件数で切らない**（`gh pr list --limit N` で回さない）。リポジトリ全体を `--paginate` で取る:
+
+```sh
+repo=pooza/misskey
+# ⚠⚠ gh を単独で走らせ終了ステータスを見る。パイプで繋ぐとページング失敗を握り潰して偽のゼロになる。
+# ⚠ 上書きは >| で（zsh の noclobber 対策）。
+gh api --paginate "repos/$repo/pulls/comments?per_page=100" >| /tmp/codex-raw.json \
+  || { echo '走査に失敗した。結果を信用しないこと' >&2; exit 1; }
+jq -s add /tmp/codex-raw.json >| /tmp/codex.json
+jq -r '. as $all | $all[] | . as $c
+  | select(.user.login == "chatgpt-codex-connector[bot]")
+  # ⚠⚠ GitHub は返信をスレッドの根に紐づける。$c.id で引くと入れ子が永久に残る。
+  | (.in_reply_to_id // .id) as $root
+  | select(([$all[] | select((.in_reply_to_id // .id) == $root)
+                    | select(.user.login != "chatgpt-codex-connector[bot]")
+                    | select(.created_at > $c.created_at)] | length) == 0
+           or ((.reactions["+1"] // 0) + (.reactions["-1"] // 0)) == 0)
+  | "PR#\(.pull_request_url | split("/") | last) id=\(.id) \(.path)"' /tmp/codex.json
+```
+
+⚠ **`reactions.total_count` を完了判定に使わない**（👀 が 1 つ付くだけで非ゼロになる）。
+
+> 実測（2026-08-31・初回走査）: **未処理 9 件**。うち 4 件は **#401 / #406 の 2026-02〜03 のもので、
+> merged PR に付いたまま 5〜6 か月放置**されていた。**この走査を回すまで誰も気づいていなかった。**
 
 ## 情報の記載先ルール
 
