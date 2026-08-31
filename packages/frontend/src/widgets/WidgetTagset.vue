@@ -35,6 +35,8 @@ import MkSelect from '@/components/MkSelect.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
+import { useInterval } from '@@/js/use-interval.js';
+import { isSameLocalDate, programScheduleLabel } from '@/utility/program-schedule.js';
 
 type Program = {
 	enable?: boolean;
@@ -46,6 +48,10 @@ type Program = {
 	livecure?: boolean;
 	minutes?: number;
 	extra_tags?: string[];
+	// 次回放送日（`YYYY-MM-DD`）と放送開始時刻（`HH:MM`）。どちらもモロヘイヤが
+	// 返すが、`next_on` を持たない枠がある（#419）。
+	next_on?: string;
+	start_time?: string;
 };
 
 type SelectItem = { value: string; label: string };
@@ -76,8 +82,22 @@ const itemMap = computed<Record<string, SelectItem>>(() =>
 	Object.fromEntries(options.value.map(it => [it.value, it])),
 );
 
-const buildLabel = (p: Program): string => {
+// 放送日時をラベルの先頭に置く（#419）。API のレスポンスは既に放送順なので、
+// 日付が出れば「どれが今日の枠か」が一覧で分かる。書式は capsicum と Mastodon
+// フォークに合わせてあり、`@/utility/program-schedule.js` に切り出してある。
+//
+// `now` は呼び出し側から渡す。エントリごとに `new Date()` を呼ぶと、取得中に日付が
+// 変わったときリスト内で「今日」の基準がズレる。
+const buildLabel = (p: Program, now: Date): string => {
 	const label: string[] = [];
+	const schedule = programScheduleLabel({
+		nextOn: p.next_on,
+		startTime: p.start_time,
+		now,
+		todayLabel: dic.today,
+		tomorrowLabel: dic.tomorrow,
+	});
+	if (schedule) label.push(schedule);
 	if (p.series) label.push(p.series);
 	if (p.episode) {
 		label.push(`${dic.episodePrefix}${p.episode}${p.episode_suffix || dic.episodeSuffix}`);
@@ -92,29 +112,55 @@ const buildLabel = (p: Program): string => {
 	return label.join(' ');
 };
 
+// 選択肢を組み立て直す。`now` はここで 1 回だけ取り、全エントリで使い回す。
+// 組み立てた時点の日付を `builtOn` に控えておき、日付を跨いだら組み直す（下の
+// `useInterval`）。
+let builtOn: Date | null = null;
+
+const rebuildOptions = () => {
+	const next: SelectItem[] = [
+		{ value: 'clear_tags', label: dic.clearTags },
+	];
+
+	const now = new Date();
+	for (const k of Object.keys(programs.value).filter(k => programs.value[k]?.enable)) {
+		const v = programs.value[k]!;
+		next.push({ value: k, label: buildLabel(v, now) });
+	}
+
+	next.push({ value: 'episode_browser', label: dic.episodeBrowser });
+
+	options.value = next;
+	builtOn = now;
+};
+
 const getPrograms = async () => {
 	try {
-		const next: SelectItem[] = [
-			{ value: 'clear_tags', label: dic.clearTags },
-		];
-
 		await window.fetch('/mulukhiya/api/program/update', { method: 'POST' });
 		const res = await window.fetch('/mulukhiya/api/program');
 		const json = await res.json() as Record<string, Program>;
 		programs.value = json;
 
-		for (const k of Object.keys(programs.value).filter(k => programs.value[k]?.enable)) {
-			const v = programs.value[k]!;
-			next.push({ value: k, label: buildLabel(v) });
-		}
-
-		next.push({ value: 'episode_browser', label: dic.episodeBrowser });
-
-		options.value = next;
+		rebuildOptions();
 	} catch (e: any) {
 		os.alert({ type: 'error', title: dic.fetch, text: e?.message ?? String(e) });
 	}
 };
+
+// 日付を跨いだらラベルを組み直す（#419）。ウィジェットは一度組み立てた選択肢を保持し
+// 続けるので、これが無いと SPA を開いたまま日付を跨いだとき「今日」が昨日の枠を指した
+// ままになる。番組表そのものは取り直さない（再取得は上のリロードボタン）。
+//
+// `useInterval` は非アクティブなタブでは止まり、復帰時に interval 以上経過していれば
+// 即座に 1 回呼ぶので、バックグラウンドで日付を跨いだ場合も戻った時点で追いつく。
+useInterval(() => {
+	if (builtOn == null) return; // まだ一度も取得できていない
+	if (isSameLocalDate(builtOn, new Date())) return;
+	rebuildOptions();
+}, 1000 * 60, {
+	immediate: false,
+	afterMounted: true,
+});
 
 const setPrograms = async () => {
 	const selected = programSelected.value as string | undefined;

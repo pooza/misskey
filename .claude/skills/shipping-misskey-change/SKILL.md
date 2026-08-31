@@ -20,8 +20,11 @@ CI で落ちやすい / レビュアーから指摘されやすいポイント�
 - [ ] エンティティ (`packages/backend/src/models/*.ts` の `@Column` / `@Entity` / `@Index`) を変更した → `pnpm --filter backend check-migrations` が pending DDL 0 件で通る
 - [ ] migration ファイルを追加した → `up()` と `down()` の両方を実装した / 既存のマージ済 migration は一切触っていない
 - [ ] 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、その他は TS コメント形式)
-- [ ] `locales/` を編集した → **`ja-JP.yml` だけ** を変更しており、他言語 yml の diff は出ていない (`git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空)
+- [ ] `locales/` を編集した → **`ja-JP.yml` だけ** を変更しており、他言語 yml の diff は出ていない (`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空)
+  - ⚠ **例外: フォーク独自キー (`_tagset` 等) は `en-US.yml` にも手で足す。** `packages/i18n/src/index.ts` の `build()` が `case 'en-US': merge(ja-JP, en-US)` なので、en-US に無いキーは日本語のまま英語 UI に出る。Crowdin プロジェクトは upstream 側にあり独自キーは配信されない。`locales/en-US.yml` **だけ** が出ていて差分が独自キーに閉じているなら OK
+  - ⚠ 比較先は **`daisskey`**。`develop` は upstream 追従用で、そこと比べるとフォーク独自キーが丸ごと差分に出る
 - [ ] ユーザーから見える変更 (機能追加 / 既存挙動変更) → `CHANGELOG.md` の `## Unreleased` 直下の該当サブセクション (General / Client / Server) に 1 行追記した → 詳細書式は [references/tasks/changelog-update.md](references/tasks/changelog-update.md)
+  - ⚠ **例外: フォーク独自機能 (`WidgetTagset` 等) だけの変更では追記しない。** `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと毎回の追従で衝突し、upstream のリリースノートに紛れ込む
 - [ ] backend API endpoint を追加・変更した → [misskey-api-reviewer](../../agents/misskey-api-reviewer.md) agent を Task で起動して機械レビューする (endpoint-list 登録漏れ / misskey-js 再生成漏れ / meta・UUID / SPDX。lint や CI では拾いにくい 404・登録漏れの最終関門なので、該当する変更があれば飛ばさない)
 - [ ] frontend の `.vue` を追加・変更した → [vue-component-reviewer](../../agents/vue-component-reviewer.md) agent を Task で起動して機械レビューする (SPDX 形式 / 命名 / i18n / SCSS 変数 / os.* / a11y / Storybook 併設)
 - [ ] (任意) `.claude/` ハーネス自体の健全性を確認したい → ECC 由来の [/harness-audit](../../commands/harness-audit.md) コマンドを実行
