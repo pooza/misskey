@@ -35,6 +35,7 @@ import MkSelect from '@/components/MkSelect.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
+import { programScheduleLabel } from '@/utility/program-schedule.js';
 
 type Program = {
 	enable?: boolean;
@@ -80,73 +81,21 @@ const itemMap = computed<Record<string, SelectItem>>(() =>
 	Object.fromEntries(options.value.map(it => [it.value, it])),
 );
 
-// 番組表エントリの放送日時をラベル用の 1 つの文字列へ畳む（#419）。
+// 放送日時をラベルの先頭に置く（#419）。API のレスポンスは既に放送順なので、
+// 日付が出れば「どれが今日の枠か」が一覧で分かる。書式は capsicum と Mastodon
+// フォークに合わせてあり、`@/utility/program-schedule.js` に切り出してある。
 //
-// 表示の書式は capsicum（`program_schedule_display.dart`）に合わせてある。
-// 3 クライアント（capsicum / ここ / Mastodon フォーク）で書式が割れると番組表を
-// 見比べるときに困るため、片方だけ変えないこと。
-//
-// タグセットを選ぶのは実況の直前なので、当日・翌日だけ「今日」「明日」へ
-// 置き換え、それ以遠は `M/d` にする。判定はローカル日付で行う
-// （`new Date('2026-08-09')` は UTC 深夜として解釈されるので使わない。時差が
-// 入ると「今日」が 1 日ズレる）。
-//
-// ⚠ `next_on` を持たない枠は日付を出さない。「毎日」とは書かないこと
-//   （2026-08-16 判断。放送日を持たないことと毎日放送であることは違う）。
-//
-// 書式は厳密に見る。`/mulukhiya/api/program` は `var/program.yaml` の値をその
-// まま載せるので、手編集由来の不正値がここまで届く。素通しすると実在しない日
-// （`2026-02-31`）が「それらしい別の日」として表示されてしまう。
-const parseNextOn = (value?: string): Date | null => {
-	const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
-	if (!matched) return null;
-
-	const year = Number(matched[1]);
-	const month = Number(matched[2]);
-	const day = Number(matched[3]);
-	const date = new Date(year, month - 1, day);
-	if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-
-	return date;
-};
-
-// モロヘイヤは保存時にゼロ埋めするが、古いエントリや手編集では `9:00` のまま
-// 残りうるのでこちらでも `HH:MM` へ揃える。
-const parseStartTime = (value?: string): string | null => {
-	const matched = /^(\d{1,2}):(\d{2})$/.exec(value ?? '');
-	if (!matched) return null;
-
-	const hour = Number(matched[1]);
-	if (hour > 23 || Number(matched[2]) > 59) return null;
-
-	return `${String(hour).padStart(2, '0')}:${matched[2]}`;
-};
-
-const buildSchedule = (p: Program): string => {
-	const nextOn = parseNextOn(p.next_on);
-	const startTime = parseStartTime(p.start_time);
-
-	let datePart = '';
-	if (nextOn) {
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-		const days = Math.round((nextOn.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-		if (days === 0) datePart = dic.today;
-		else if (days === 1) datePart = dic.tomorrow;
-		else datePart = `${nextOn.getMonth() + 1}/${nextOn.getDate()}`;
-	}
-
-	if (startTime == null) return datePart;
-	if (datePart === '') return startTime;
-
-	return `${datePart} ${startTime}`;
-};
-
-const buildLabel = (p: Program): string => {
+// `now` は呼び出し側から渡す。エントリごとに `new Date()` を呼ぶと、取得中に日付が
+// 変わったときリスト内で「今日」の基準がズレる。
+const buildLabel = (p: Program, now: Date): string => {
 	const label: string[] = [];
-	// 放送日時をラベルの先頭に置く（#419）。API のレスポンスは既に放送順なので、
-	// 日付が出れば「どれが今日の枠か」が一覧で分かる。
-	const schedule = buildSchedule(p);
+	const schedule = programScheduleLabel({
+		nextOn: p.next_on,
+		startTime: p.start_time,
+		now,
+		todayLabel: dic.today,
+		tomorrowLabel: dic.tomorrow,
+	});
 	if (schedule) label.push(schedule);
 	if (p.series) label.push(p.series);
 	if (p.episode) {
@@ -173,9 +122,10 @@ const getPrograms = async () => {
 		const json = await res.json() as Record<string, Program>;
 		programs.value = json;
 
+		const now = new Date();
 		for (const k of Object.keys(programs.value).filter(k => programs.value[k]?.enable)) {
 			const v = programs.value[k]!;
-			next.push({ value: k, label: buildLabel(v) });
+			next.push({ value: k, label: buildLabel(v, now) });
 		}
 
 		next.push({ value: 'episode_browser', label: dic.episodeBrowser });
