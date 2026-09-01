@@ -215,9 +215,24 @@ API 仕様の正本は
 ## CI とレビュー体制
 
 ⚠ **このフォークの `.github/workflows/` は upstream から大きく削られている。**
+フォークに関係のない処理や冗長なテストを外し、**必要なものだけを残す**方針。
 `packages/backend` / `packages/frontend` の **lint も test も CI では走らない**
 （唯一の lint/test ジョブ `packages-private.yml` は `packages-private/` のみが対象）。
-残っているのは診断系（backend / frontend diagnostics）だけ。
+
+⚠⚠ **削るときは、残した側が参照しているファイルまで落ちていないか確かめる。**
+2026-09-01 時点で **実際に走る workflow は `packages-private.yml` 1 本だけ**。
+診断系 4 本（backend / frontend diagnostics の inspect / comment）は
+`.github/misskey/test.yml` を `cp` するのにその設定ファイルがツリーに無く、
+**`inspect` は毎回 failure・`comment` は毎回 skipped のまま放置されていた**ので削除した（#428）。
+🔴 **「消し忘れた workflow」は緑にならないだけでなく、CI が動いているように見せて実態を隠す。**
+
+⚠ **`.github/misskey/test.yml` 自体は upstream から戻した。**これは workflow ではなく
+**backend テストの設定**で、`.config/test.yml` の元になる。⚠⚠ **無いと
+`pnpm test` / `test:e2e` / `test:fed` が起動しない**（各スクリプトが内部で
+`compile-config` を呼ぶ）。`.claude/skills/working-on-backend/` も
+`.github/copilot-instructions.md` も**このファイルから `.config/test.yml` を作れと書いている**ので、
+落ちたままだとローカル検証の手順ごと成立しない。
+**冗長な CI は削るが、テストの前提ファイルは残す。**
 
 🔴 **`check-misskey-js-autogen` は死んでいる。** `check-misskey-js-autogen.comment.yml` は
 `workflow_run` で `Check Misskey JS autogen` という名前のワークフローの完了を待つが、
