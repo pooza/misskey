@@ -103,10 +103,11 @@ const buildLabel = (p: Program, now: Date): string => {
 		label.push(`${dic.episodePrefix}${p.episode}${p.episode_suffix || dic.episodeSuffix}`);
 	}
 	if (p.subtitle) label.push(`「${p.subtitle}」`);
-	if (p.livecure) {
-		if (p.air) label.push(dic.air);
-		label.push(dic.livecure);
-	}
+	// air は livecure とは独立した軸（モロヘイヤ docs/api.md）。従属させると、下の
+	// user_tags 側（無条件）と食い違い、確認ダイアログで見た文字列と実際に送るタグが
+	// ズレる。capsicum / Mastodon フォークも無条件 (#424)
+	if (p.air) label.push(dic.air);
+	if (p.livecure) label.push(dic.livecure);
 	if (p.minutes) label.push(`${p.minutes}分`);
 	(p.extra_tags ?? []).forEach(tag => label.push(tag));
 	return label.join(' ');
