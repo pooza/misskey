@@ -126,6 +126,84 @@ describe('Streaming', () => {
 			});
 		});
 
+		describe('subNote (noteUpdated)', () => {
+			// connectStream は channel メッセージ専用なので、subNote の購読はここで生の WebSocket を使う。
+			// subNote には ack が無いため、後続の connect の 'connected' を待って登録完了を保証する
+			// (サーバーは同一接続のメッセージを到着順に処理する)。
+			const waitNoteUpdated = async (user: misskey.entities.SignupResponse, noteId: string, trgr: () => any) => {
+				const ws = new WebSocket(`ws://127.0.0.1:${port}/streaming?i=${user.token}`);
+
+				try {
+					let onSubscribed: () => void;
+					const subscribed = new Promise<void>((resolve) => { onSubscribed = resolve; });
+
+					const received = new Promise<boolean>((resolve) => {
+						ws.on('message', data => {
+							const msg = JSON.parse(data.toString());
+							if (msg.type === 'connected' && msg.body.id === 'subNote-ack') {
+								onSubscribed!();
+							} else if (msg.type === 'noteUpdated' && msg.body.id === noteId) {
+								resolve(true);
+							}
+						});
+					});
+
+					await new Promise<void>((resolve, reject) => {
+						ws.on('open', () => resolve());
+						ws.on('error', reject);
+					});
+
+					ws.send(JSON.stringify({ type: 'subNote', body: { id: noteId } }));
+					ws.send(JSON.stringify({ type: 'connect', body: { channel: 'main', id: 'subNote-ack' } }));
+					await subscribed;
+
+					await trgr();
+
+					return await Promise.race([
+						received,
+						new Promise<void>((r) => setTimeout(() => r(), 3000)).then(() => false),
+					]);
+				} finally {
+					ws.close();
+				}
+			};
+
+			// erin は kanako をフォローしていない
+			test('followers 限定ノートで自分がメンションされていれば noteUpdated が届く', async () => {
+				const note = await post(kanako, { text: '@erin followers only', visibility: 'followers' });
+
+				const fired = await waitNoteUpdated(erin, note.id,
+					() => api('notes/reactions/create', { noteId: note.id, reaction: '\u{1f44d}' }, kanako),
+				);
+
+				assert.strictEqual(fired, true);
+			});
+
+			// ⚠ NoteCreateService はローカルのリプライ先ユーザーを mentions にも積む (NoteCreateService.ts:621)
+			// ため、このケースは mentions 例外でも通る。branch を単離してはいないが、
+			// 「リプライ先の当人に noteUpdated が届く」という要求そのものは見ている。
+			test('followers 限定ノートが自分の投稿へのリプライなら noteUpdated が届く', async () => {
+				const erinNote = await post(erin, { text: 'hello' });
+				const note = await post(kanako, { text: 'reply', replyId: erinNote.id, visibility: 'followers' });
+
+				const fired = await waitNoteUpdated(erin, note.id,
+					() => api('notes/reactions/create', { noteId: note.id, reaction: '\u{1f44d}' }, kanako),
+				);
+
+				assert.strictEqual(fired, true);
+			});
+
+			test('followers 限定ノートでフォロワーでもリプライ先でもメンション先でもなければ noteUpdated が届かない', async () => {
+				const note = await post(kanako, { text: 'followers only', visibility: 'followers' });
+
+				const fired = await waitNoteUpdated(erin, note.id,
+					() => api('notes/reactions/create', { noteId: note.id, reaction: '\u{1f44d}' }, kanako),
+				);
+
+				assert.strictEqual(fired, false);
+			});
+		});
+
 		describe('Home Timeline', () => {
 			test('自分の投稿が流れる', async () => {
 				const fired = await waitFire(

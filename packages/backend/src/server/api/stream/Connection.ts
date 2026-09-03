@@ -222,9 +222,11 @@ export default class Connection {
 
 				const isFollower = Object.hasOwn(this.following, data.body.userId);
 				// 自分の投稿に対するリプライ
-				const isReplyToMe = data.body.replyUserId === meId;
+				// ⚠ 旧バージョンの producer が publish した payload には無いことがある (ローリング更新中)。
+				// 例外側が欠けても「フォロワーなら届く」までは維持する
+				const isReplyToMe = meId === data.body.replyUserId;
 				// 自分へのメンション
-				const isMentioningMe = data.body.mentions.includes(meId);
+				const isMentioningMe = data.body.mentions?.includes(meId) ?? false;
 
 				if (!isFollower && !isReplyToMe && !isMentioningMe) {
 					return;
