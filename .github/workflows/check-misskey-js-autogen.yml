@@ -43,6 +43,13 @@ jobs:
       - name: Prepare config
         run: cp .config/example.yml .config/default.yml
 
+      # ⚠ build-misskey-js-with-types は `--filter=!misskey-js` で misskey-js を事前ビルドから
+      # 除外するが、その後の generate-api-json が読み込む backend のバンドルは
+      # misskey-js/built/index.js を import する。クリーンチェックアウトではこれが存在せず
+      # ERR_MODULE_NOT_FOUND で落ちるので、先に misskey-js だけビルドしておく。
+      - name: Pre-build misskey-js
+        run: pnpm --filter misskey-js build
+
       # AGENTS.md に書いてあるコマンドそのものを実行する (コマンド自体の生存確認も兼ねる)
       - name: Regenerate misskey-js
         run: pnpm build-misskey-js-with-types
