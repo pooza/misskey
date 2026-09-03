@@ -132,6 +132,10 @@ type NoteStreamEventTypes = {
 		userId: MiNote['userId'];
 		visibility: MiNote['visibility'];
 		visibleUserIds: MiNote['visibleUserIds'];
+		// visibility が followers のときの例外判定 (自分の投稿へのリプライ / 自分へのメンション) に使う。
+		// Connection.onNoteStreamMessage を参照。
+		replyUserId: MiNote['replyUserId'];
+		mentions: MiNote['mentions'];
 		body: NoteEventTypes[key];
 	};
 };
@@ -387,6 +391,8 @@ export class GlobalEventService {
 			userId: note.userId,
 			visibility: note.visibility,
 			visibleUserIds: note.visibleUserIds,
+			replyUserId: note.replyUserId,
+			mentions: note.mentions,
 			body: value,
 		});
 	}

@@ -66,7 +66,8 @@ export default abstract class Channel {
 	}
 
 	protected isNoteVisibleForMe(note: Packed<'Note'>): boolean {
-		// This code must always be synchronized with the checks in QueryService.generateVisibilityQuery.
+		// This code must always be synchronized with the checks in QueryService.generateVisibilityQuery
+		// and Connection.onNoteStreamMessage.
 		const meId = this.connection.user?.id ?? null;
 
 		// visibility が specified かつ自分が指定されていなかったら非表示
