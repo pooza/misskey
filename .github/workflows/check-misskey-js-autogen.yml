@@ -54,6 +54,19 @@ jobs:
       - name: Regenerate misskey-js
         run: pnpm build-misskey-js-with-types
 
+      # ⚠ update-autogen-code は ncp (削除しない再帰コピー) で generator/built/autogen を
+      # src/autogen に被せるだけなので、generator が出さなくなったファイルは on-tree に
+      # 残り続け、git status には出ない。生成物とのファイル構成比較でそれを拾う。
+      - name: Check for stale autogen files
+        run: |
+          if diff -r -q packages/misskey-js/generator/built/autogen packages/misskey-js/src/autogen; then
+            echo 'No stale files in packages/misskey-js/src/autogen.'
+            exit 0
+          fi
+
+          echo '::error::packages/misskey-js/src/autogen に、生成されなくなったファイルが残っています。生成物に無いファイルを削除して commit してください。'
+          exit 1
+
       - name: Check autogen diff
         run: |
           # 追加ファイルも拾うため diff ではなく status で判定する
