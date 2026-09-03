@@ -88,6 +88,8 @@
 
 1. **lint**: `pnpm lint` が通る (typecheck + eslint, 全パッケージ)
 2. **backend API 変更時**: `pnpm build-misskey-js-with-types` を実行し `packages/misskey-js/src/autogen/` の差分も commit に含めた
+   - ⚠ **クリーンチェックアウトでは先に `pnpm --filter misskey-js build` が要る。** このスクリプトは `--filter=!misskey-js` で misskey-js を事前ビルドから除外するが、続く `generate-api-json` が読み込む backend のバンドルは `misskey-js/built` を import するため、`packages/misskey-js/built/` が無いと `ERR_MODULE_NOT_FOUND` で落ちる (一度でも `pnpm build` していれば起きない)
+   - CI では `.github/workflows/check-misskey-js-autogen.yml` がこの再生成を実行し、`packages/misskey-js/src/autogen/` に差分が出たら fail する (#423)
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)
 5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
@@ -111,7 +113,7 @@
 | Backend federation test | `pnpm --filter backend test:fed` |
 | Frontend unit test | `pnpm --filter frontend test` |
 | Migration 差分検査 (pending DDL) | `pnpm --filter backend check-migrations` |
-| `misskey-js` 再生成 (API 変更後必須) | `pnpm build-misskey-js-with-types` |
+| `misskey-js` 再生成 (API 変更後必須) | `pnpm --filter misskey-js build && pnpm build-misskey-js-with-types` |
 | 全体ビルド | `pnpm build` |
 | 開発サーバー (backend + frontend watch) | `pnpm dev` |
 
