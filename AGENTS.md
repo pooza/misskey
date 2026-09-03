@@ -20,8 +20,9 @@
 
 1. **SPDX ヘッダー欠落のまま AGPL 管轄ディレクトリへ新規ファイルを追加しない**
    - 対象: 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイル
-   - CI の対象判定は [.github/workflows/check-spdx-license-id.yml](.github/workflows/check-spdx-license-id.yml) の `directories` 配列を参照 (`*.config.{ts,js,cjs,mjs}` と `*eslint*` は除外)
-   - 欠落すると CI (`spdx` ジョブ) が失敗する
+   - CI の対象判定は [.github/workflows/check-spdx-license-id.yml](.github/workflows/check-spdx-license-id.yml) の `dirs` 配列を参照 (`*.config.{ts,js,cjs,mjs}` と `*eslint*` は除外)
+   - 欠落すると CI (`Check SPDX-License-Identifier`) が失敗する
+   - ⚠ フォーク: **この workflow はフォーク自前の実装** (#433)。upstream 現行版が呼ぶ `scripts/check-spdx.mjs` はこのツリーに無いので、追従時にそのまま持ってこないこと
    - `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)
 
    `.ts` / `.js` / `.cjs` / `.mjs` / `.scss`:
