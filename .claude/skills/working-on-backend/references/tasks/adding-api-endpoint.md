@@ -247,6 +247,8 @@ pnpm --filter backend lint
 `meta` / `paramDef` / `res` を変えたら必ず:
 
 ```bash
+# clone 直後など misskey-js が未ビルドの環境では先に build が要る (ERR_MODULE_NOT_FOUND 対策)
+pnpm --filter misskey-js build
 pnpm build-misskey-js-with-types
 ```
 

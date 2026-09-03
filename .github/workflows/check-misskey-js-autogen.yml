@@ -1,0 +1,82 @@
+name: Check Misskey JS autogen
+
+# AGENTS.md「変更を出す前の最低チェック」項目 2 (backend API 変更時は
+# pnpm build-misskey-js-with-types を実行して packages/misskey-js/src/autogen/ の
+# 差分も commit する) を CI で担保する (#423)。
+#
+# ⚠ この autogen は capsicum の API トリアージ (docs/misskey-capsicum-api-watch.md) が
+# daisskey を直接 diff して参照している。再生成漏れは他リポジトリに波及する。
+
+on:
+  pull_request:
+    paths:
+      - packages/backend/**
+      - packages/misskey-js/**
+      - package.json
+      - pnpm-lock.yaml
+      - .github/workflows/check-misskey-js-autogen.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.9
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      # generate-api-json が内部で compile-config を呼ぶので設定ファイルが要る
+      - name: Prepare config
+        run: cp .config/example.yml .config/default.yml
+
+      # ⚠ build-misskey-js-with-types は `--filter=!misskey-js` で misskey-js を事前ビルドから
+      # 除外するが、その後の generate-api-json が読み込む backend のバンドルは
+      # misskey-js/built/index.js を import する。クリーンチェックアウトではこれが存在せず
+      # ERR_MODULE_NOT_FOUND で落ちるので、先に misskey-js だけビルドしておく。
+      - name: Pre-build misskey-js
+        run: pnpm --filter misskey-js build
+
+      # AGENTS.md に書いてあるコマンドそのものを実行する (コマンド自体の生存確認も兼ねる)
+      - name: Regenerate misskey-js
+        run: pnpm build-misskey-js-with-types
+
+      # ⚠ update-autogen-code は ncp (削除しない再帰コピー) で generator/built/autogen を
+      # src/autogen に被せるだけなので、generator が出さなくなったファイルは on-tree に
+      # 残り続け、git status には出ない。生成物とのファイル構成比較でそれを拾う。
+      - name: Check for stale autogen files
+        run: |
+          if diff -r -q packages/misskey-js/generator/built/autogen packages/misskey-js/src/autogen; then
+            echo 'No stale files in packages/misskey-js/src/autogen.'
+            exit 0
+          fi
+
+          echo '::error::packages/misskey-js/src/autogen に、生成されなくなったファイルが残っています。生成物に無いファイルを削除して commit してください。'
+          exit 1
+
+      - name: Check autogen diff
+        run: |
+          # 追加ファイルも拾うため diff ではなく status で判定する
+          if [ -z "$(git status --porcelain -- packages/misskey-js/src/autogen)" ]; then
+            echo 'packages/misskey-js/src/autogen is up to date.'
+            exit 0
+          fi
+
+          git status --porcelain -- packages/misskey-js/src/autogen
+          git --no-pager diff -- packages/misskey-js/src/autogen
+
+          echo '::error::packages/misskey-js/src/autogen が再生成されていません。ローカルで pnpm build-misskey-js-with-types を実行し、生成された差分も commit してください。'
+          exit 1

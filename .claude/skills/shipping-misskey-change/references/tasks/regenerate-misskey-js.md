@@ -19,6 +19,11 @@ backend の API endpoint やスキーマ (`meta` / `paramDef` / `res`) を変更
 
 ```bash
 # リポジトリルートから実行する
+# ⚠ misskey-js を一度もビルドしていない環境 (clone 直後など) では先に build が要る。
+#    build-misskey-js-with-types は `--filter=!misskey-js` で misskey-js を事前ビルドから
+#    除外するが、続く generate-api-json が読む backend のバンドルは misskey-js/built を
+#    import するため、無いと ERR_MODULE_NOT_FOUND で落ちる。
+pnpm --filter misskey-js build
 pnpm build-misskey-js-with-types
 ```
 

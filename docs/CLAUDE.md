@@ -220,7 +220,8 @@ API 仕様の正本は
 （唯一の lint/test ジョブ `packages-private.yml` は `packages-private/` のみが対象）。
 
 ⚠⚠ **削るときは、残した側が参照しているファイルまで落ちていないか確かめる。**
-2026-09-01 時点で **実際に走る workflow は `packages-private.yml` 1 本だけ**。
+2026-09-04 時点で走る workflow は `packages-private.yml` と
+`check-misskey-js-autogen.yml` の 2 本。
 診断系 4 本（backend / frontend diagnostics の inspect / comment）は
 `.github/misskey/test.yml` を `cp` するのにその設定ファイルがツリーに無く、
 **`inspect` は毎回 failure・`comment` は毎回 skipped のまま放置されていた**ので削除した（#428）。
@@ -234,12 +235,23 @@ API 仕様の正本は
 落ちたままだとローカル検証の手順ごと成立しない。
 **冗長な CI は削るが、テストの前提ファイルは残す。**
 
-🔴 **`check-misskey-js-autogen` は死んでいる。** `check-misskey-js-autogen.comment.yml` は
-`workflow_run` で `Check Misskey JS autogen` という名前のワークフローの完了を待つが、
-**その producer がツリーに存在しない**（`grep -rn '^name:' .github/workflows/*.yml` で確認できる）。
-つまり [AGENTS.md](../AGENTS.md) のチェック項目「backend API 変更時は
-`pnpm build-misskey-js-with-types` を実行して `packages/misskey-js/src/autogen/` の差分も
-commit する」を、**CI は一切検査していない**。⚠ **手で守るしかない**（#423）。
+**`check-misskey-js-autogen` は復活済み（#423）。** [AGENTS.md](../AGENTS.md) のチェック項目
+「backend API 変更時は `pnpm build-misskey-js-with-types` を実行して
+`packages/misskey-js/src/autogen/` の差分も commit する」を CI が検査する。
+
+`packages/backend/**` / `packages/misskey-js/**` を触った PR で
+`.github/workflows/check-misskey-js-autogen.yml` が走り、**AGENTS.md に書いてあるコマンドを
+そのまま実行して** `packages/misskey-js/src/autogen/` に差分が出たら fail する。
+再生成漏れは PR のチェック欄が赤くなるので、ログの diff を見て
+ローカルで `pnpm build-misskey-js-with-types` を実行し、生成物も commit すること。
+
+⚠ 2026-09-04 まではこの検査が**死んでいた**。upstream 由来の
+`check-misskey-js-autogen.comment.yml`（`workflow_run` で producer の完了を待つ側）だけが残り、
+待ち受ける producer が `e6e765bc6f`「del: actionsをクリア。」で消えたままだったため、
+**`workflow_run` が永久に発火しなかった**。復活にあたり、
+**fork の PR トークンではコメントできない upstream 事情のための 2 本立て（producer + comment）は採らず**、
+このリポジトリの PR は同一リポジトリのブランチから出るので
+**1 本の workflow が直接 fail する形に単純化し、宙に浮いた comment 側は削除した**。
 
 🔴 **これは capsicum に波及する。** capsicum は
 [docs/misskey-capsicum-api-watch.md](https://github.com/pooza/capsicum/blob/main/docs/misskey-capsicum-api-watch.md)
