@@ -20,27 +20,10 @@
 
 1. **SPDX ヘッダー欠落のまま AGPL 管轄ディレクトリへ新規ファイルを追加しない**
    - 対象: 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイル
-   - CI の対象判定は [.github/workflows/check-spdx-license-id.yml](.github/workflows/check-spdx-license-id.yml) の `directories` 配列を参照 (`*.config.{ts,js,cjs,mjs}` と `*eslint*` は除外)
-   - 欠落すると CI (`spdx` ジョブ) が失敗する
+   - 対象と判定は [scripts/check-spdx.mjs](scripts/check-spdx.mjs) が一元管理する
+   - `node scripts/check-spdx.mjs` を 1 回実行し、欠落は `--fix` で補う。
+     `SPDX: OK` なら追加の目視確認はしない
    - `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)
-
-   `.ts` / `.js` / `.cjs` / `.mjs` / `.scss`:
-
-   ```text
-   /*
-    * SPDX-FileCopyrightText: syuilo and misskey-project
-    * SPDX-License-Identifier: AGPL-3.0-only
-    */
-   ```
-
-   `.vue` / `.html` (HTML コメント形式):
-
-   ```text
-   <!--
-   SPDX-FileCopyrightText: syuilo and misskey-project
-   SPDX-License-Identifier: AGPL-3.0-only
-   -->
-   ```
 
 2. **`locales/ja-JP.yml` 以外の locale YAML を手動編集しない**
    - 他言語ファイル (`en-US.yml` など `ja-JP.yml` 以外すべて) は Crowdin の自動配信先。手動編集すると次の同期で上書き喪失する
@@ -59,7 +42,7 @@
 ### Git / リポジトリ操作
 
 4. **`git push --force` / `--force-with-lease` を `main` / `develop` / `master` にしない** (他人の作業を消す可能性)
-5. **`git commit --no-verify` で hook をスキップしない** (lint / format / SPDX チェックを潰す)
+5. **`git commit --no-verify` で hook をスキップしない**
 6. **マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない** (履歴の整合性が壊れる)
 7. **他人のブランチを `git reset --hard` / `git branch -D` で破壊しない**
 8. **`git config` をユーザーに無断で書き換えない** (特に `user.name` / `user.email` / `commit.gpgsign`)
@@ -86,12 +69,15 @@
 
 各エージェントは [shipping-misskey-change スキル](.claude/skills/shipping-misskey-change/SKILL.md) を参照すること。スキルが利用できない環境でも、以下のチェックは必ず実施すること:
 
-1. **lint**: `pnpm lint` が通る (typecheck + eslint, 全パッケージ)
+⚠ 1 / 4 / 6 は `node scripts/check-shipping.mjs --base daisskey` で一括実行できる (2026.9.0 で upstream から入った)。**`--base daisskey` を省略しないこと** — 既定の統合先に `daisskey` が入っておらず、`develop` (upstream 追従用ミラー) と比べてしまう。6 の en-US 例外もこの script は知らない (→ [SKILL.md](.claude/skills/shipping-misskey-change/SKILL.md) の「このフォークでの差し引き」)
+
+1. **lint / test**: ESLint 対象の変更ファイルへ package root から `eslint --quiet` を最後に 1 回実行し、実装変更には最も近い test を選んで実行する。
+   package / repo 全体 lint と広域 test は任意
 2. **backend API 変更時**: `pnpm build-misskey-js-with-types` を実行し `packages/misskey-js/src/autogen/` の差分も commit に含めた
    - ⚠ **クリーンチェックアウトでは先に `pnpm --filter misskey-js build` が要る。** このスクリプトは `--filter=!misskey-js` で misskey-js を事前ビルドから除外するが、続く `generate-api-json` が読み込む backend のバンドルは `misskey-js/built` を import するため、`packages/misskey-js/built/` が無いと `ERR_MODULE_NOT_FOUND` で落ちる (一度でも `pnpm build` していれば起きない)
    - CI では `.github/workflows/check-misskey-js-autogen.yml` がこの再生成を実行し、`packages/misskey-js/src/autogen/` に差分が出たら fail する (#423)
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
-4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)
+4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)。`node scripts/check-spdx.mjs` が `SPDX: OK` を返すことで確認する (欠落は `--fix` で補う)
 5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
    - **⚠ 例外: フォーク独自機能だけの変更では追記しない** (`WidgetTagset` など、upstream に存在しないもの)
      - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない
@@ -107,7 +93,7 @@
 
 | 用途 | コマンド |
 | --- | --- |
-| 全体 lint (typecheck + eslint) | `pnpm lint` |
+| 全体 lint (任意) | `pnpm lint` |
 | Backend unit test | `pnpm --filter backend test` |
 | Backend e2e test | `pnpm --filter backend test:e2e` |
 | Backend federation test | `pnpm --filter backend test:fed` |
