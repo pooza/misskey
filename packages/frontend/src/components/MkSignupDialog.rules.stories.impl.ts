@@ -54,6 +54,8 @@ export const Empty = {
 		// @ts-expect-error serverRules is for test
 		serverRules: [],
 		tosUrl: null,
+		disableRegistration: false,
+		inquiryUrl: null,
 	},
 	decorators: [
 		(_, context) => ({
@@ -62,10 +64,16 @@ export const Empty = {
 				instance.serverRules = context.args.serverRules;
 				// @ts-expect-error tosUrl is for test
 				instance.tosUrl = context.args.tosUrl;
+				// @ts-expect-error disableRegistration is for test
+				instance.disableRegistration = context.args.disableRegistration;
+				// @ts-expect-error inquiryUrl is for test
+				instance.inquiryUrl = context.args.inquiryUrl;
 				onBeforeUnmount(() => {
 					// FIXME: 呼び出されない
 					instance.serverRules = [];
 					instance.tosUrl = null;
+					instance.disableRegistration = false;
+					instance.inquiryUrl = null;
 				});
 			},
 			template: '<story/>',
@@ -100,5 +108,22 @@ export const ServerRulesAndTOS = {
 		// @ts-expect-error serverRules is for test
 		serverRules: ServerRulesOnly.args.serverRules,
 		tosUrl: TOSOnly.args.tosUrl,
+	},
+} satisfies StoryObj<typeof MkSignupServerRules>;
+export const InvitationRequired = {
+	...Empty,
+	args: {
+		...Empty.args,
+		// @ts-expect-error disableRegistration is for test
+		disableRegistration: true,
+	},
+} satisfies StoryObj<typeof MkSignupServerRules>;
+export const InvitationRequiredWithInquiryUrl = {
+	...Empty,
+	args: {
+		...Empty.args,
+		// @ts-expect-error disableRegistration is for test
+		disableRegistration: true,
+		inquiryUrl: 'https://example.com/contact',
 	},
 } satisfies StoryObj<typeof MkSignupServerRules>;
