@@ -12,7 +12,8 @@
 
 ### コード・データ関連
 
-- **SPDX ヘッダー必須**: AGPL-3.0-only 管轄かつ SPDX CI 対象ディレクトリに新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.scss` / `.vue` / `.html` ファイルを追加する場合は冒頭に必ず付ける。詳細な対象判定は `.github/workflows/check-spdx-license-id.yml` を参照。
+- **SPDX ヘッダー必須**: AGPL-3.0-only 管轄かつ SPDX CI 対象ディレクトリに新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.scss` / `.vue` / `.html` ファイルを追加する場合は冒頭に必ず付ける。
+  対象判定は `scripts/check-spdx.mjs` を参照。
 
   ```text
   /*
@@ -31,6 +32,8 @@
   ```
 
   `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)。
+  SPDX の合否は CI と skill が同じ `scripts/check-spdx.mjs` で判定するため、code review で目視チェックを重ねない。
+  CI は `--ci` で SPDX 行の有無を検査し、既定モードは加えて `.vue` / `.html` のコメント形式を検査する。
 
 - **`locales/ja-JP.yml` 以外の locale YAML を編集しない**。他言語ファイル (`en-US.yml` など `ja-JP.yml` 以外すべて) は Crowdin の自動配信先で、手動編集すると次の同期で上書き喪失する。
   ⚠ **例外: フォーク独自キー (`_tagset` 等、upstream にも Crowdin にも無いキー) だけは `en-US.yml` にも手で足す。** `packages/i18n/src/index.ts` の `build()` が `case 'en-US': merge(ja-JP, en-US)` なので、en-US に無いと日本語のまま英語 UI に出る。upstream にもあるキーの翻訳修正は従来どおり禁止。
@@ -52,12 +55,13 @@
 
 ## 変更を出す前の最低チェック
 
-1. `pnpm lint` が通る (typecheck + eslint, 全パッケージ)
+1. ESLint 対象の変更ファイルへ package root から `eslint --quiet` を最後に 1 回実行し、実装変更には最も近い test を選んで実行する。
+   package / repo 全体 lint と広域 test は任意
 2. backend で `meta` / `paramDef` / `res` を変更した → `pnpm build-misskey-js-with-types` を実行し `packages/misskey-js/src/autogen/` の差分も commit に含めた
    - ⚠ クリーンチェックアウトでは先に `pnpm --filter misskey-js build` が要る (無いと `generate-api-json` が `misskey-js/built` を解決できず `ERR_MODULE_NOT_FOUND` で落ちる)
    - CI (`.github/workflows/check-misskey-js-autogen.yml`) がこの再生成を実行し、差分が出たら fail する
 3. entity / migration を変更した → `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
-4. 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた
+4. 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた (`node scripts/check-spdx.mjs` が `SPDX: OK`)
 5. ユーザー影響のある変更 → `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
    ⚠ **例外: フォーク独自機能 (`WidgetTagset` 等、upstream に無いもの) だけの変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。
 6. `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空であることを確認 (`locales/en-US.yml` だけが出ていて、その差分がフォーク独自キーに閉じている場合は OK)
@@ -65,7 +69,7 @@
 ## Validation コマンド
 
 - 全体ビルド: `pnpm build`
-- 全体 lint / typecheck: `pnpm lint`
+- 全体 lint / typecheck (任意): `pnpm lint`
 - Backend unit test: `pnpm --filter backend test`
 - Backend e2e test: `pnpm --filter backend test:e2e`
 - Backend federation test: `pnpm --filter backend test:fed`
