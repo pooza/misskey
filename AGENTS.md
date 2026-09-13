@@ -16,6 +16,8 @@
 
 違反すると CI 失敗 / 本番事故 / 共有環境破壊 になる。順守すること。
 
+⚠ **この 16 項目は upstream (misskey-dev/misskey) 由来**で、upstream の前提 (多人数・`main` / `develop` 運用) で書かれている。**フォークの実態に合わない箇所には `⚠ フォーク:` で始まる注記を付けてある**ので、原文と注記の両方を読むこと (#434)。
+
 ### コード・データ関連
 
 1. **SPDX ヘッダー欠落のまま AGPL 管轄ディレクトリへ新規ファイルを追加しない**
@@ -41,10 +43,14 @@
 
 ### Git / リポジトリ操作
 
-4. **`git push --force` / `--force-with-lease` を `main` / `develop` / `master` にしない** (他人の作業を消す可能性)
+4. **`git push --force` / `--force-with-lease` を `daisskey` / `develop` / `main` / `master` にしない** (他人の作業を消す可能性)
+   - ⚠ フォーク: **`daisskey` がこのフォークのデフォルトブランチ**で、`main` は存在しない。upstream の原文は `main` / `develop` / `master` の列挙で、**最も壊してはいけない `daisskey` が保護から漏れていた** (#434)
 5. **`git commit --no-verify` で hook をスキップしない**
+   - ⚠ フォーク: 2026-09-04 時点で**実効的な git hook は無い** (`.git/hooks/` は sample のみ、`core.hooksPath` 未設定、husky / lefthook も未導入)。**現状この条項は空振りする**が、hook を入れたときに効くよう残す
 6. **マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない** (履歴の整合性が壊れる)
+   - ⚠ フォーク: **例外は「自分が push した直後の、レビューがまだ付いていない未マージ PR ブランチ」だけ。**単独コントリビューターで他人が fetch していないため、壊れる整合性が無い。⚠⚠ **レビューが付いた後とマージ後は従来どおり禁止**（指摘の宛先コミットが消える）
 7. **他人のブランチを `git reset --hard` / `git branch -D` で破壊しない**
+   - ⚠ フォーク: 単独コントリビューターなので現状は空振り。upstream へ持ち帰る可能性を考えて残す
 8. **`git config` をユーザーに無断で書き換えない** (特に `user.name` / `user.email` / `commit.gpgsign`)
 
 ### Issue / PR / 外部送信
@@ -79,10 +85,11 @@
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)。`node scripts/check-spdx.mjs` が `SPDX: OK` を返すことで確認する (欠落は `--fix` で補う)
 5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-   - **⚠ 例外: フォーク独自機能だけの変更では追記しない** (`WidgetTagset` など、upstream に存在しないもの)
-     - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない
-     - 前例: フォーク側のコミットで `CHANGELOG.md` を編集したものは 1 件も無い
-   - upstream にも影響する変更 (upstream へ PR を出す前提のもの) は従来どおり追記する
+   - ⚠ フォーク: **判定基準は「upstream へ PR を出すか」であって、「フォーク独自機能か」ではない。**フォーク内で閉じる変更では、upstream 由来のファイルを upstream 由来の設定値で直すものであっても追記しない (#434)
+     - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない。この理屈は変更が独自機能かどうかに依存しない
+     - ⚠⚠ **`WidgetTagset` のような独自機能は「例」であって条件ではない。**「upstream にもあるファイル / フィールドを触ったから追記が要る」という読み方をしない
+     - 前例: フォーク側のコミットで `CHANGELOG.md` を編集したものは 1 件も無い (`git log --no-merges daisskey --not upstream/develop upstream/master -- CHANGELOG.md` が空)
+   - **このフォークは既定で upstream へ PR を出さない** ([docs/CLAUDE.md](docs/CLAUDE.md)「PR の base は必ず `pooza/misskey:daisskey`。upstream へは送らない」)。したがって追記が要る場面は実質ほぼ無く、**upstream へ出すと決めたときにだけ足す**
 6. **locale safety**: `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` の出力が空であることを確認
    - 出力が `locales/en-US.yml` **だけ** で、その差分がフォーク独自キー (`_tagset` 等) に閉じている場合は OK (上記「絶対にやってはいけない事」#2 の例外)。それ以外のファイルが出たら止める
    - ⚠ 比較先は **`daisskey`** (このフォークのベースブランチ)。`develop` は upstream 追従用なので、そこと比べるとフォーク独自キーが丸ごと差分に出てしまう

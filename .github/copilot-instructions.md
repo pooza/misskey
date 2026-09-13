@@ -42,9 +42,9 @@
 
 ### Git / リポジトリ操作
 
-- `git push --force` / `--force-with-lease` を `main` / `develop` / `master` にしない
-- `git commit --no-verify` で hook をスキップしない
-- マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない
+- `git push --force` / `--force-with-lease` を `daisskey` / `develop` / `main` / `master` にしない (⚠ `daisskey` がこのフォークのデフォルトブランチ。`main` は存在しない)
+- `git commit --no-verify` で hook をスキップしない (⚠ 現状このフォークに実効的な git hook は無く空振りする)
+- マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない (⚠ 例外は「**自分が** push した直後の、レビューがまだ付いていない未マージ PR ブランチ」だけ。他人が push したブランチ・レビューが付いた後・マージ後は禁止)
 - 他人のブランチを `git reset --hard` / `git branch -D` で破壊しない
 - `git config` をユーザーに無断で書き換えない (特に `user.name` / `user.email` / `commit.gpgsign`)
 
@@ -63,7 +63,7 @@
 3. entity / migration を変更した → `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた (`node scripts/check-spdx.mjs` が `SPDX: OK`)
 5. ユーザー影響のある変更 → `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-   ⚠ **例外: フォーク独自機能 (`WidgetTagset` 等、upstream に無いもの) だけの変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。
+   ⚠ **判定基準は「upstream へ PR を出すか」。フォーク内で閉じる変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。このフォークは既定で upstream へ送らない (`docs/CLAUDE.md`) ので、追記が要る場面は実質ほぼ無い。**`WidgetTagset` のような独自機能は例であって条件ではなく、upstream 由来のファイル・設定値を触ったことは追記の理由にならない。**
 6. `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空であることを確認 (`locales/en-US.yml` だけが出ていて、その差分がフォーク独自キーに閉じている場合は OK)
 
 ## Validation コマンド
