@@ -132,7 +132,10 @@ export class MetaEntityService {
 			sentryForFrontend: this.config.sentryForFrontend ?? null,
 			mediaProxy: this.config.mediaProxy,
 			enableUrlPreview: instance.urlPreviewEnabled,
-			noteSearchableScope: (this.config.fulltextSearch?.provider === 'meilisearch' && this.config.meilisearch?.scope === 'local') ? 'local' : 'global',
+			// ⚠ フォーク: defaultTag が設定されていると SearchService は host='.' を「タグ一致」として
+			// 扱う (SearchService.searchNoteByLike)。その運用ではローカル以外を検索対象にする意味が
+			// 無いので、フロントの検索スコープから「全体」「サーバー指定」を落とす (#338)。
+			noteSearchableScope: ((this.config.fulltextSearch?.provider === 'meilisearch' && this.config.meilisearch?.scope === 'local') || this.config.defaultTag?.tag != null) ? 'local' : 'global',
 			maxFileSize: this.config.maxFileSize,
 			federation: this.meta.federation,
 		};
