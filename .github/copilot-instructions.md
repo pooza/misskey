@@ -63,7 +63,7 @@
 3. entity / migration を変更した → `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイルを追加した → SPDX ヘッダーを付けた (`node scripts/check-spdx.mjs` が `SPDX: OK`)
 5. ユーザー影響のある変更 → `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-   ⚠ **例外: フォーク独自機能 (`WidgetTagset` 等、upstream に無いもの) だけの変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。
+   ⚠ **判定基準は「upstream へ PR を出すか」。フォーク内で閉じる変更では追記しない。** `CHANGELOG.md` は upstream 所有で追従のたびに `## Unreleased` が畳まれるため、フォークのエントリは衝突し upstream のリリースノートに紛れ込む。このフォークは既定で upstream へ送らない (`docs/CLAUDE.md`) ので、追記が要る場面は実質ほぼ無い。**`WidgetTagset` のような独自機能は例であって条件ではなく、upstream 由来のファイル・設定値を触ったことは追記の理由にならない。**
 6. `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空であることを確認 (`locales/en-US.yml` だけが出ていて、その差分がフォーク独自キーに閉じている場合は OK)
 
 ## Validation コマンド

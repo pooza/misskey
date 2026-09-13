@@ -85,10 +85,11 @@
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)。`node scripts/check-spdx.mjs` が `SPDX: OK` を返すことで確認する (欠落は `--fix` で補う)
 5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
-   - **⚠ 例外: フォーク独自機能だけの変更では追記しない** (`WidgetTagset` など、upstream に存在しないもの)
-     - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない
-     - 前例: フォーク側のコミットで `CHANGELOG.md` を編集したものは 1 件も無い
-   - upstream にも影響する変更 (upstream へ PR を出す前提のもの) は従来どおり追記する
+   - ⚠ フォーク: **判定基準は「upstream へ PR を出すか」であって、「フォーク独自機能か」ではない。**フォーク内で閉じる変更では、upstream 由来のファイルを upstream 由来の設定値で直すものであっても追記しない (#434)
+     - 理由: `CHANGELOG.md` は upstream 所有のファイルで、追従のたびに `## Unreleased` が `## <version>` へ畳まれる。フォークのエントリを置くと**毎回の追従で衝突し、upstream のリリースノートに紛れ込む**。このフォークは独自のリリースノートを publish していない。この理屈は変更が独自機能かどうかに依存しない
+     - ⚠⚠ **`WidgetTagset` のような独自機能は「例」であって条件ではない。**「upstream にもあるファイル / フィールドを触ったから追記が要る」という読み方をしない
+     - 前例: フォーク側のコミットで `CHANGELOG.md` を編集したものは 1 件も無い (`git log --no-merges daisskey --not upstream/develop upstream/master -- CHANGELOG.md` が空)
+   - **このフォークは既定で upstream へ PR を出さない** ([docs/CLAUDE.md](docs/CLAUDE.md)「PR の base は必ず `pooza/misskey:daisskey`。upstream へは送らない」)。したがって追記が要る場面は実質ほぼ無く、**upstream へ出すと決めたときにだけ足す**
 6. **locale safety**: `locales/` を編集した場合、`git diff --name-only daisskey -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` の出力が空であることを確認
    - 出力が `locales/en-US.yml` **だけ** で、その差分がフォーク独自キー (`_tagset` 等) に閉じている場合は OK (上記「絶対にやってはいけない事」#2 の例外)。それ以外のファイルが出たら止める
    - ⚠ 比較先は **`daisskey`** (このフォークのベースブランチ)。`develop` は upstream 追従用なので、そこと比べるとフォーク独自キーが丸ごと差分に出てしまう
