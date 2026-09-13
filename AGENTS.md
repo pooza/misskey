@@ -25,6 +25,7 @@
    - 対象と判定は [scripts/check-spdx.mjs](scripts/check-spdx.mjs) が一元管理する
    - `node scripts/check-spdx.mjs` を 1 回実行し、欠落は `--fix` で補う。
      `SPDX: OK` なら追加の目視確認はしない
+   - 欠落すると CI (`Check SPDX-License-Identifier`) が失敗する。この workflow は同じ script を `--ci` で呼ぶので、**ローカルと CI で判定がずれない** (#433)
    - `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)
 
 2. **`locales/ja-JP.yml` 以外の locale YAML を手動編集しない**

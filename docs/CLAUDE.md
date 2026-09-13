@@ -220,8 +220,8 @@ API 仕様の正本は
 （唯一の lint/test ジョブ `packages-private.yml` は `packages-private/` のみが対象）。
 
 ⚠⚠ **削るときは、残した側が参照しているファイルまで落ちていないか確かめる。**
-2026-09-04 時点で走る workflow は `packages-private.yml` と
-`check-misskey-js-autogen.yml` の 2 本。
+2026-09-04 時点で走る workflow は `packages-private.yml` /
+`check-misskey-js-autogen.yml` / `check-spdx-license-id.yml` の 3 本。
 診断系 4 本（backend / frontend diagnostics の inspect / comment）は
 `.github/misskey/test.yml` を `cp` するのにその設定ファイルがツリーに無く、
 **`inspect` は毎回 failure・`comment` は毎回 skipped のまま放置されていた**ので削除した（#428）。
@@ -252,6 +252,22 @@ API 仕様の正本は
 **fork の PR トークンではコメントできない upstream 事情のための 2 本立て（producer + comment）は採らず**、
 このリポジトリの PR は同一リポジトリのブランチから出るので
 **1 本の workflow が直接 fail する形に単純化し、宙に浮いた comment 側は削除した**。
+
+**`check-spdx-license-id` はフォーク自前で書き直した（#433）。** AGENTS.md #1（AGPL 管轄への新規
+ファイルは SPDX ヘッダー必須）を CI が検査する。⚠ **2026-09-04 まではこれも死んでいた** —
+`e6e765bc6f`「del: actionsをクリア。」で消えたまま、AGENTS.md には「CI (`spdx` ジョブ) が失敗する」
+と書いてあった。
+
+**判定は `scripts/check-spdx.mjs --ci` に委ねている。**⚠ この PR を起こした時点では
+そのスクリプトがツリーに無く（2026.7.0 に含まれていなかった）`git ls-files` ベースの bash を
+自前で書いていたが、**2026.9.0 の追従（#437）で upstream から入ったので捨てた**。
+ローカルの `check-shipping.mjs` も同じスクリプトを呼ぶので、**対象ディレクトリ・除外規則・
+ヘッダーの照合が CI とローカルでずれない**。node の builtin だけで動くので install もビルドも不要。
+
+⚠ **`--ci` は「欠落」だけを見る。**`.vue` / `.html` のコメント形式違反は既定モード
+（`node scripts/check-spdx.mjs`）が見るので、そちらはローカルの出口で担保している。
+⚠⚠ **`--ci` は追跡済みファイルしか走査しない。**未追跡のまま置いたファイルは CI をすり抜ける
+（PR に含める＝コミットされていれば必ず見られるので、実運用では問題にならない）。
 
 🔴 **これは capsicum に波及する。** capsicum は
 [docs/misskey-capsicum-api-watch.md](https://github.com/pooza/capsicum/blob/main/docs/misskey-capsicum-api-watch.md)

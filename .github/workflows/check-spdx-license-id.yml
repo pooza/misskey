@@ -1,0 +1,44 @@
+name: Check SPDX-License-Identifier
+
+# AGENTS.md「絶対にやってはいけない事」#1 (AGPL 管轄への新規ファイルは SPDX ヘッダー必須) を
+# CI で担保する (#433)。
+#
+# 判定は scripts/check-spdx.mjs が一元管理する。ローカルの check-shipping.mjs も同じ script を
+# 呼ぶので、対象ディレクトリ・除外規則・ヘッダーの照合が CI とローカルでずれない。
+# --ci は upstream CI と同じく「欠落」だけを見る (.vue / .html のコメント形式違反は
+# ローカルの既定モードが見る)。
+#
+# node の builtin しか使っていないので install もビルドも要らない。
+
+on:
+  pull_request:
+    paths:
+      - '**.ts'
+      - '**.js'
+      - '**.cjs'
+      - '**.mjs'
+      - '**.vue'
+      - '**.scss'
+      - '**.html'
+      - scripts/check-spdx.mjs
+      - scripts/lib/git.mjs
+      - .github/workflows/check-spdx-license-id.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Check SPDX-License-Identifier
+        run: node scripts/check-spdx.mjs --ci
