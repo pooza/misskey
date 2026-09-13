@@ -44,7 +44,7 @@
 
 - `git push --force` / `--force-with-lease` を `daisskey` / `develop` / `main` / `master` にしない (⚠ `daisskey` がこのフォークのデフォルトブランチ。`main` は存在しない)
 - `git commit --no-verify` で hook をスキップしない (⚠ 現状このフォークに実効的な git hook は無く空振りする)
-- マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない (⚠ 例外は「push 直後・レビュー前の未マージ PR ブランチ」だけ。レビュー後とマージ後は禁止)
+- マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない (⚠ 例外は「**自分が** push した直後の、レビューがまだ付いていない未マージ PR ブランチ」だけ。他人が push したブランチ・レビューが付いた後・マージ後は禁止)
 - 他人のブランチを `git reset --hard` / `git branch -D` で破壊しない
 - `git config` をユーザーに無断で書き換えない (特に `user.name` / `user.email` / `commit.gpgsign`)
 
