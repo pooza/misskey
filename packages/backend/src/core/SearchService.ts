@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In } from 'typeorm';
+import { Brackets, In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { type Config, FulltextSearchProvider } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -19,7 +19,6 @@ import { IdService } from '@/core/IdService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type { Index, Meilisearch } from 'meilisearch';
 import { normalizeForSearch } from '@/misc/normalize-for-search.js';
-import { loadConfig } from '@/config.js';
 
 type K = string;
 type V = string | number | boolean;
@@ -230,10 +229,16 @@ export class SearchService {
 
 		if (opts.host) {
 			if (opts.host === '.') {
-				const config = loadConfig();
-				const defaultTag: string | null = config.defaultTag?.tag;
-				if (defaultTag) {
-					query.andWhere(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] });
+				// ⚠ フォーク: defaultTag 運用での「ローカル」は
+				// 「デフォルトタグ付き (リモート含む)」または「自サーバーの投稿」(#338)。
+				// タグ側だけで絞ると、タグを付けずに投稿されたローカルノートがどの検索スコープ
+				// からも引けなくなる (defaultTag.append が false なら大量に該当する)。
+				const defaultTag = this.config.defaultTag?.tag;
+				if (defaultTag != null) {
+					query.andWhere(new Brackets(qb => {
+						qb.where(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] })
+							.orWhere('note.userHost IS NULL');
+					}));
 				} else {
 					query.andWhere('note.userHost IS NULL');
 				}
