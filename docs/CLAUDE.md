@@ -258,10 +258,16 @@ API 仕様の正本は
 `e6e765bc6f`「del: actionsをクリア。」で消えたまま、AGENTS.md には「CI (`spdx` ジョブ) が失敗する」
 と書いてあった。
 
-⚠⚠ **upstream 版は移植していない。**upstream の現行版は `scripts/check-spdx.mjs` を呼ぶが、
-**そのスクリプトはこのツリーに無い**（2026.7.0 に含まれていなかった）。2026.7.0 版は `find` ベースの
-70 行の bash。フォーク版は `git ls-files` ベースで書き直してあり、**実測 0.03 秒 / 2255 ファイル、
-`pnpm install` もビルドも不要**。⚠ 追従時に upstream 版をそのまま持ってこないこと。
+**判定は `scripts/check-spdx.mjs --ci` に委ねている。**⚠ この PR を起こした時点では
+そのスクリプトがツリーに無く（2026.7.0 に含まれていなかった）`git ls-files` ベースの bash を
+自前で書いていたが、**2026.9.0 の追従（#437）で upstream から入ったので捨てた**。
+ローカルの `check-shipping.mjs` も同じスクリプトを呼ぶので、**対象ディレクトリ・除外規則・
+ヘッダーの照合が CI とローカルでずれない**。node の builtin だけで動くので install もビルドも不要。
+
+⚠ **`--ci` は「欠落」だけを見る。**`.vue` / `.html` のコメント形式違反は既定モード
+（`node scripts/check-spdx.mjs`）が見るので、そちらはローカルの出口で担保している。
+⚠⚠ **`--ci` は追跡済みファイルしか走査しない。**未追跡のまま置いたファイルは CI をすり抜ける
+（PR に含める＝コミットされていれば必ず見られるので、実運用では問題にならない）。
 
 🔴 **これは capsicum に波及する。** capsicum は
 [docs/misskey-capsicum-api-watch.md](https://github.com/pooza/capsicum/blob/main/docs/misskey-capsicum-api-watch.md)

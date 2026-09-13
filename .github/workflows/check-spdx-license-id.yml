@@ -3,10 +3,12 @@ name: Check SPDX-License-Identifier
 # AGENTS.md「絶対にやってはいけない事」#1 (AGPL 管轄への新規ファイルは SPDX ヘッダー必須) を
 # CI で担保する (#433)。
 #
-# ⚠ upstream 版は移植していない。upstream の現行版は scripts/check-spdx.mjs を呼ぶが
-# そのスクリプトはこのフォークのツリーに無く (2026.7.0 に含まれていなかった)、
-# 2026.7.0 版は find ベースの 70 行の bash。ここは git ls-files ベースで書き直してある。
-# 実測 0.03 秒 / 2255 ファイル。install もビルドも不要。
+# 判定は scripts/check-spdx.mjs が一元管理する。ローカルの check-shipping.mjs も同じ script を
+# 呼ぶので、対象ディレクトリ・除外規則・ヘッダーの照合が CI とローカルでずれない。
+# --ci は upstream CI と同じく「欠落」だけを見る (.vue / .html のコメント形式違反は
+# ローカルの既定モードが見る)。
+#
+# node の builtin しか使っていないので install もビルドも要らない。
 
 on:
   pull_request:
@@ -18,6 +20,8 @@ on:
       - '**.vue'
       - '**.scss'
       - '**.html'
+      - scripts/check-spdx.mjs
+      - scripts/lib/git.mjs
       - .github/workflows/check-spdx-license-id.yml
   workflow_dispatch:
 
@@ -37,29 +41,4 @@ jobs:
           persist-credentials: false
 
       - name: Check SPDX-License-Identifier
-        run: |
-          # ⚠ packages/misskey-js は MIT のサブパッケージなので対象に入れない
-          dirs=(
-            packages/backend/migration packages/backend/src packages/backend/test
-            packages/frontend-shared/@types packages/frontend-shared/js packages/frontend-builder
-            packages/frontend/.storybook packages/frontend/@types packages/frontend/lib
-            packages/frontend/public packages/frontend/src packages/frontend/test
-            packages/frontend-embed/@types packages/frontend-embed/src
-            packages/icons-subsetter/src packages/misskey-bubble-game/src
-            packages/misskey-reversi/src packages/sw/src scripts
-          )
-
-          missing="$(
-            git ls-files -z -- "${dirs[@]}" \
-              | grep -zE '\.(ts|js|cjs|mjs|vue|scss|html)$' \
-              | grep -zvE '\.config\.(ts|js|cjs|mjs)$|eslint' \
-              | xargs -0 -r grep -L 'SPDX-License-Identifier' || true
-          )"
-
-          if [ -n "$missing" ]; then
-            while IFS= read -r f; do echo "Missing: $f"; done <<< "$missing"
-            echo "::error::SPDX-License-Identifier が $(echo "$missing" | wc -l) 件のファイルに欠落しています。AGENTS.md #1 のヘッダーを先頭に追加してください (.vue / .html は HTML コメント形式)。"
-            exit 1
-          fi
-
-          echo "SPDX: OK"
+        run: node scripts/check-spdx.mjs --ci
