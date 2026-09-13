@@ -206,6 +206,8 @@ export default class Connection {
 
 	@bindThis
 	private async onNoteStreamMessage(data: GlobalEvents['note']['payload']) {
+		// This code must always be synchronized with Channel.isNoteVisibleForMe
+		// and the checks in QueryService.generateVisibilityQuery.
 		// 自分自身ではないかつ
 		if (data.body.userId !== this.user?.id) {
 			// 公開範囲が指名で自分が含まれてない
@@ -213,9 +215,22 @@ export default class Connection {
 				return;
 			}
 
-			// 公開範囲がフォロワーで自分がフォロワーでない
-			if (data.body.visibility === 'followers' && !Object.hasOwn(this.following, data.body.userId)) {
-				return;
+			// 公開範囲がフォロワーで、フォロワーでも例外 (自分の投稿へのリプライ / 自分へのメンション) でもない
+			if (data.body.visibility === 'followers') {
+				const meId = this.user?.id ?? null;
+				if (meId == null) return;
+
+				const isFollower = Object.hasOwn(this.following, data.body.userId);
+				// 自分の投稿に対するリプライ
+				// ⚠ 旧バージョンの producer が publish した payload には無いことがある (ローリング更新中)。
+				// 例外側が欠けても「フォロワーなら届く」までは維持する
+				const isReplyToMe = meId === data.body.replyUserId;
+				// 自分へのメンション
+				const isMentioningMe = data.body.mentions?.includes(meId) ?? false;
+
+				if (!isFollower && !isReplyToMe && !isMentioningMe) {
+					return;
+				}
 			}
 		}
 
