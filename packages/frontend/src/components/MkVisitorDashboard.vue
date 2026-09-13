@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="instance.disableRegistration || instance.federation !== 'all'" :class="$style.mainWarn" class="_gaps_s">
 				<MkInfo v-if="instance.disableRegistration" warn>
 					{{ i18n.ts.invitationRequiredToRegister }}
-					<MkLink v-if="instance.inquiryUrl" :url="instance.inquiryUrl" target="_blank">{{ i18n.ts.inquiry }}</MkLink>
+					<MkLink v-if="instance.inquiryUrl" :url="instance.inquiryUrl">{{ i18n.ts.inquiry }}</MkLink>
 				</MkInfo>
 				<MkInfo v-if="instance.federation === 'specified'" warn>{{ i18n.ts.federationSpecified }}</MkInfo>
 				<MkInfo v-else-if="instance.federation === 'none'" warn>{{ i18n.ts.federationDisabled }}</MkInfo>

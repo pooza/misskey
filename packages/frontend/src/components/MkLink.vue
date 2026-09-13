@@ -5,9 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component
-	:is="self ? 'MkA' : 'a'" ref="el" style="word-break: break-all;" class="_link" :[attr]="maybeRelativeUrl" :rel="rel ?? 'nofollow noopener'" :target="target"
+	:is="self ? 'MkA' : 'a'" ref="el" style="word-break: break-all;" class="_link" :[attr]="linkUrl" :rel="rel ?? 'nofollow noopener'" :target="target"
 	:behavior="props.navigationBehavior"
-	:title="url"
+	:title="href"
 >
 	<slot></slot>
 	<i v-if="target === '_blank'" class="ti ti-external-link" :class="$style.icon"></i>
@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { defineAsyncComponent, ref } from 'vue';
 import { url as local } from '@@/js/config.js';
-import { maybeMakeRelative } from '@@/js/url.js';
+import { maybeMakeRelative, tryParseUrl } from '@@/js/url.js';
 import type { MkABehavior } from '@/components/global/MkA.vue';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import * as os from '@/os.js';
@@ -30,10 +30,18 @@ const props = withDefaults(defineProps<{
 }>(), {
 });
 
-const isMulukhiyaHome = (new URL(props.url)).pathname.startsWith('/mulukhiya');
-const maybeRelativeUrl = maybeMakeRelative(props.url, local);
-const self = (maybeRelativeUrl !== props.url) && !isMulukhiyaHome;
+// props.url には相対パスや不正な文字列が渡ることがある (inquiryUrl のように、
+// 管理画面が絶対 URL を強制しない設定値が流れてくる)。base 無しの new URL() は
+// そこで throw し、MkLink を描いているコンポーネントごと描画に失敗する。
+const resolvedUrl = tryParseUrl(props.url, local);
+const href = resolvedUrl?.href ?? props.url;
+const isMulukhiyaHome = resolvedUrl?.pathname.startsWith('/mulukhiya') ?? false;
+const maybeRelativeUrl = maybeMakeRelative(href, local);
+// 解決できなかった URL を MkA (SPA 内遷移) に渡すと空パスへの router.push になるので、
+// その場合は外部リンク扱いのまま素の値を出す。
+const self = (resolvedUrl != null) && (maybeRelativeUrl !== href) && !isMulukhiyaHome;
 const attr = self ? 'to' : 'href';
+const linkUrl = self ? maybeRelativeUrl : href;
 const target = self ? null : '_blank';
 
 const el = ref<HTMLElement | { $el: HTMLElement }>();
@@ -44,7 +52,7 @@ if (isEnabledUrlPreview.value) {
 		if (anchorElement == null) return;
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
-			url: props.url,
+			url: href,
 			anchorElement: anchorElement,
 		}, {
 			closed: () => dispose(),
