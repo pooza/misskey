@@ -138,16 +138,23 @@ export class SearchService {
 		if (note.text == null && note.cw == null) return;
 		if (!['home', 'public'].includes(note.visibility)) return;
 
+		// ⚠ フォーク: defaultTag 運用では host='.' がデフォルトタグ付きのリモート投稿も含む (#338 / #442)。
+		// scope が local / ホスト指定でも、それらを index しておかないと「ローカル」検索から引けない。
+		const defaultTag = this.config.defaultTag?.tag;
+		const hasDefaultTag = defaultTag != null && note.tags.includes(normalizeForSearch(defaultTag));
+
 		switch (this.meilisearchIndexScope) {
 			case 'global':
 				break;
 
 			case 'local':
 				if (note.userHost == null) break;
+				if (hasDefaultTag) break;
 				return;
 
 			default: {
 				if (note.userHost == null) break;
+				if (hasDefaultTag) break;
 				if (this.meilisearchIndexScope.includes(note.userHost)) break;
 				return;
 			}
@@ -302,7 +309,21 @@ export class SearchService {
 		if (opts.channelId) filter.qs.push({ op: '=', k: 'channelId', v: opts.channelId });
 		if (opts.host) {
 			if (opts.host === '.') {
-				filter.qs.push({ op: 'is null', k: 'userHost' });
+				// ⚠ フォーク: searchNoteByLike と同じく、defaultTag 運用での「ローカル」は
+				// 「デフォルトタグ付き (リモート含む)」または「自サーバーの投稿」(#338 / #442)。
+				// tags は配列なので、meilisearch の `=` は要素のいずれかとの一致になる。
+				const defaultTag = this.config.defaultTag?.tag;
+				if (defaultTag != null) {
+					filter.qs.push({
+						op: 'or',
+						qs: [
+							{ op: '=', k: 'tags', v: normalizeForSearch(defaultTag) },
+							{ op: 'is null', k: 'userHost' },
+						],
+					});
+				} else {
+					filter.qs.push({ op: 'is null', k: 'userHost' });
+				}
 			} else {
 				filter.qs.push({ op: '=', k: 'userHost', v: opts.host });
 			}
