@@ -138,16 +138,23 @@ export class SearchService {
 		if (note.text == null && note.cw == null) return;
 		if (!['home', 'public'].includes(note.visibility)) return;
 
+		// ⚠ フォーク: defaultTag 運用では host='.' がデフォルトタグ付きのリモート投稿も含む (#338 / #442)。
+		// scope が local / ホスト指定でも、それらを index しておかないと「ローカル」検索から引けない。
+		const defaultTag = this.config.defaultTag?.tag;
+		const hasDefaultTag = defaultTag != null && note.tags.includes(normalizeForSearch(defaultTag));
+
 		switch (this.meilisearchIndexScope) {
 			case 'global':
 				break;
 
 			case 'local':
 				if (note.userHost == null) break;
+				if (hasDefaultTag) break;
 				return;
 
 			default: {
 				if (note.userHost == null) break;
+				if (hasDefaultTag) break;
 				if (this.meilisearchIndexScope.includes(note.userHost)) break;
 				return;
 			}

@@ -629,4 +629,70 @@ describe('SearchService', () => {
 
 		defineSearchNoteTests(() => ctx, { supportsFollowersVisibility: false, sinceIdOrder: 'desc' });
 	});
+
+	// ⚠ フォーク: 既定の scope: local でも、デフォルトタグ付きのリモート投稿は index される (#442)。
+	// indexer はテスト側で複製せず、SearchService.indexNote をそのまま通す。
+	describe('meilisearch (scope: local, defaultTag)', () => {
+		let ctx: TestContext;
+		let meilisearch: Meilisearch;
+		let meilisearchIndex: Index;
+
+		beforeAll(async () => {
+			const baseConfig = loadConfig();
+			const meiliConfig: Config = {
+				...baseConfig,
+				defaultTag: { tag: 'DelMulin', append: false },
+				fulltextSearch: {
+					provider: 'meilisearch',
+				},
+				meilisearch: {
+					host: '127.0.0.1',
+					port: '57712',
+					apiKey: '',
+					index: 'test-search-service-local',
+					scope: 'local',
+					ssl: false,
+				},
+			};
+
+			ctx = await buildContext(meiliConfig);
+			meilisearch = ctx.app.get(DI.meilisearch) as Meilisearch;
+			meilisearchIndex = meilisearch.index(`${meiliConfig.meilisearch!.index}---notes`);
+
+			const settingsTask = await meilisearchIndex.updateSettings(meilisearchSettings);
+			await meilisearch.tasks.waitForTask(settingsTask.taskUid);
+
+			const clearTask = await meilisearchIndex.deleteAllDocuments();
+			await meilisearch.tasks.waitForTask(clearTask.taskUid);
+
+			ctx.indexer = async (note: MiNote) => {
+				await ctx.service.indexNote(note);
+				const { results } = await meilisearch.tasks.getTasks({ indexUids: [meilisearchIndex.uid], limit: 1 });
+				if (results.length > 0) await meilisearch.tasks.waitForTask(results[0].uid);
+			};
+		});
+
+		afterAll(async () => {
+			await ctx.app.close();
+		});
+
+		afterEach(async () => {
+			await cleanupContext(ctx);
+			const clearTask = await meilisearchIndex.deleteAllDocuments();
+			await meilisearch.tasks.waitForTask(clearTask.taskUid);
+		});
+
+		test('indexes remote notes with defaultTag and finds them as local', async () => {
+			const me = await createUser(ctx, { username: 'me', usernameLower: 'me', host: null });
+			const local = await createUser(ctx, { username: 'local', usernameLower: 'local', host: null });
+			const remote = await createUser(ctx, { username: 'remote', usernameLower: 'remote', host: 'example.com' });
+
+			const localNote = await createNote(ctx, local, { text: 'hello local', visibility: 'public' });
+			const taggedRemoteNote = await createNote(ctx, remote, { text: 'hello tagged', visibility: 'public', userHost: 'example.com', tags: ['delmulin'] });
+			await createNote(ctx, remote, { text: 'hello untagged', visibility: 'public', userHost: 'example.com', tags: ['other'] });
+
+			const result = await ctx.service.searchNote('hello', me, { host: '.' }, { limit: 10 });
+			expect(result.map(note => note.id).sort()).toEqual([localNote.id, taggedRemoteNote.id].sort());
+		});
+	});
 });
