@@ -302,7 +302,21 @@ export class SearchService {
 		if (opts.channelId) filter.qs.push({ op: '=', k: 'channelId', v: opts.channelId });
 		if (opts.host) {
 			if (opts.host === '.') {
-				filter.qs.push({ op: 'is null', k: 'userHost' });
+				// ⚠ フォーク: searchNoteByLike と同じく、defaultTag 運用での「ローカル」は
+				// 「デフォルトタグ付き (リモート含む)」または「自サーバーの投稿」(#338 / #442)。
+				// tags は配列なので、meilisearch の `=` は要素のいずれかとの一致になる。
+				const defaultTag = this.config.defaultTag?.tag;
+				if (defaultTag != null) {
+					filter.qs.push({
+						op: 'or',
+						qs: [
+							{ op: '=', k: 'tags', v: normalizeForSearch(defaultTag) },
+							{ op: 'is null', k: 'userHost' },
+						],
+					});
+				} else {
+					filter.qs.push({ op: 'is null', k: 'userHost' });
+				}
 			} else {
 				filter.qs.push({ op: '=', k: 'userHost', v: opts.host });
 			}

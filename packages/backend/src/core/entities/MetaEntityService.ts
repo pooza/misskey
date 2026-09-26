@@ -65,15 +65,12 @@ export class MetaEntityService {
 			}
 		}
 
-		// ⚠ フォーク: defaultTag が設定されていると SearchService は host='.' を「タグ一致」として
-		// 扱う (SearchService.searchNoteByLike)。その運用ではローカル以外を検索対象にする意味が
-		// 無いので、フロントの検索スコープから「全体」「サーバー指定」を落とす (#338)。
-		// ⚠⚠ この読み替えは SQL 系プロバイダにしか無い。meilisearch 経路は host='.' を
-		// userHost IS NULL のまま扱う (searchNoteByMeilisearch) ので、そこで local を名乗ると
-		// index 済みのタグ付きリモート投稿が検索 UI から辿れなくなる。
+		// ⚠ フォーク: defaultTag が設定されていると SearchService は host='.' を「タグ一致 OR 自サーバー」
+		// として扱う (searchNoteByLike / searchNoteByMeilisearch)。その運用ではローカル以外を検索対象に
+		// する意味が無いので、フロントの検索スコープから「全体」「サーバー指定」を落とす (#338)。
+		// 以前は meilisearch 経路にこの読み替えが無かったため SQL 系プロバイダに限っていた (#442 で解消)。
 		const searchProvider = this.config.fulltextSearch?.provider ?? 'sqlLike';
-		const defaultTagMeansLocal = this.config.defaultTag?.tag != null &&
-			(searchProvider === 'sqlLike' || searchProvider === 'sqlPgroonga');
+		const defaultTagMeansLocal = this.config.defaultTag?.tag != null;
 
 		const packed: Packed<'MetaLite'> = {
 			maintainerName: instance.maintainerName,

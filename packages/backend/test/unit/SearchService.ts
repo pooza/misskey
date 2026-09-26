@@ -284,6 +284,30 @@ describe('SearchService', () => {
 				expect(remoteResult.map(note => note.id)).toEqual([remoteNote.id]);
 			});
 
+			// ⚠ フォーク: defaultTag 運用での host='.' は「デフォルトタグ付き OR 自サーバー」(#338 / #442)。
+			// プロバイダ間で結果集合が揃うことを確かめる。
+			test('treats notes with defaultTag as local when defaultTag is configured', async () => {
+				const ctx = getCtx();
+				const config = ctx.app.get<Config>(DI.config);
+				const originalDefaultTag = config.defaultTag;
+				config.defaultTag = { tag: 'DelMulin', append: false };
+
+				try {
+					const me = await createUser(ctx, { username: 'me', usernameLower: 'me', host: null });
+					const local = await createUser(ctx, { username: 'local', usernameLower: 'local', host: null });
+					const remote = await createUser(ctx, { username: 'remote', usernameLower: 'remote', host: 'example.com' });
+
+					const localNote = await createNote(ctx, local, { text: 'hello local', visibility: 'public' });
+					const taggedRemoteNote = await createNote(ctx, remote, { text: 'hello tagged', visibility: 'public', userHost: 'example.com', tags: ['delmulin'] });
+					await createNote(ctx, remote, { text: 'hello untagged', visibility: 'public', userHost: 'example.com', tags: ['other'] });
+
+					const result = await ctx.service.searchNote('hello', me, { host: '.' }, { limit: 10 });
+					expect(result.map(note => note.id).sort()).toEqual([localNote.id, taggedRemoteNote.id].sort());
+				} finally {
+					config.defaultTag = originalDefaultTag;
+				}
+			});
+
 			describe('date range', () => {
 				test('filters notes after rangeStartAt', async () => {
 					const ctx = getCtx();
