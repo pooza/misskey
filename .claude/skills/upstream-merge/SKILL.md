@@ -91,8 +91,8 @@ node scripts/check-shipping.mjs --base origin/daisskey
 - 🔴 **backend typecheck は必ず回す**（§3）
 - ⚠ **locale safety の FAIL は、upstream の Crowdin 更新分なら正常。**フォークの locale 差分が追従前と同じ
   （`en-US` / `ja-JP` / `ja-KS` の独自キーだけ）かを `git diff --name-only <新タグ> HEAD -- locales/` で確かめる
-- 🔴 **entity か migration に差分がある版では `check-migrations` を回す**（`git diff --name-only <前タグ> <新タグ> -- packages/backend/src/models packages/backend/migration`）。
-  手順は下の「check-migrations の回し方」
+- 🔴 **`check-migrations` は毎回回す**（手順は下の「check-migrations の回し方」）。
+  ⚠ エンティティは `src/models` だけでなく chart（`src/core/chart/charts/entities/`）など `src/postgres.ts` が集める各所にあるので、差分のパスで要否を判定しない
 - backend の unit test は docker（`packages/backend/test/compose.yml`）があれば手元で回せる。改変カタログに載っているサービスに近いものを選ぶ
 - harness（`.claude/`）の監査（`/harness-audit`）は stable の追従で 1 回だけ
 
@@ -101,6 +101,7 @@ node scripts/check-shipping.mjs --base origin/daisskey
 TypeORM の schema builder が、**migration を当てた DB** とエンティティを比べる。手元の docker（テスト用 DB, ポート 54312）で回す:
 
 ```bash
+test -f .config/test.yml || cp .github/misskey/test.yml .config/test.yml
 docker compose -f packages/backend/test/compose.yml down -v && docker compose -f packages/backend/test/compose.yml up -d
 cd packages/backend && pnpm build
 NODE_ENV=test pnpm migrate
@@ -108,6 +109,8 @@ NODE_ENV=test pnpm compile-config && node scripts/check_migrations_clean.js   # 
 pnpm compile-config                                                            # 設定を戻す
 ```
 
+- 🔴 **`.config/test.yml` が無いまま進めない。**無いと `compile-config` は警告だけ出して `built/.config.json` を書き換えず、
+  **前に `.config/default.yml` から作った設定のまま**、テスト用ではない DB へ migrate しうる
 - 🔴 **`down -v` で DB を空にしてから。**unit test を回した後の DB には `synchronize` で作られた表が残っている
 - 🔴 **`check_migrations_clean.js` は `NODE_ENV=test` で走らせない。**テスト用の chart エンティティまで比較対象に入り、`__chart__test_*` の差分が大量に出る
 - ⚠ 2026-09-27 時点で `IDX_drive_file_user_root_id_desc` の 1 件が**既知の差**として出る（#454）。それ以外が出たら追従で入ったもの

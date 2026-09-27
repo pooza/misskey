@@ -37,14 +37,25 @@ fi
 # 差が出たファイルは、upstream がフォークの改変箇所に手を入れたか、解決で改変が欠けた。中身を見て説明できること。
 hunks() { git diff -U0 "$1" "$2" -- "$3" | grep -E '^[+-]' | grep -vE '^(\+\+\+|---) ' || true; }
 changed=""
+removed=""
 while IFS= read -r f; do
 	[ -z "$f" ] && continue
-	# フォークが削除したファイル（削除を維持した workflow など）は、upstream が中身を変えるたびに差が出るだけなので見ない
-	git cat-file -e "$AFTER:$f" 2>/dev/null || continue
+	# フォークが前から削除していたファイル（削除を維持した workflow など）は、upstream が中身を変えるたびに差が出るだけなので見ない。
+	# 🔴 前にはあって後に無いものは、衝突の解決で消した疑いなので必ず出す
+	if ! git cat-file -e "$AFTER:$f" 2>/dev/null; then
+		git cat-file -e "$BEFORE:$f" 2>/dev/null && removed+="$f"$'\n'
+		continue
+	fi
 	if ! diff -q <(hunks "$PREV" "$BEFORE" "$f") <(hunks "$NEW" "$AFTER" "$f") >/dev/null; then
 		changed+="$f"$'\n'
 	fi
 done < <(comm -12 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))
+
+if [ -n "$removed" ]; then
+	echo "== 🔴 前にはあって後に無い（衝突の解決でフォーク改変ごと消した疑い）=="
+	printf '%s' "$removed"
+	status=1
+fi
 
 if [ -n "$changed" ]; then
 	echo "== 改変行が前後で変わった（中身を確認する: diff <(git diff -U0 $PREV $BEFORE -- <file>) <(git diff -U0 $NEW $AFTER -- <file>)）=="
