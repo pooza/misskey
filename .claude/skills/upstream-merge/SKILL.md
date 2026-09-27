@@ -41,8 +41,11 @@ upstream のタグ ──merge──▶ merge/<版>（daisskey から切る）�
 .claude/skills/upstream-merge/scripts/precheck.sh <新タグ>
 ```
 
-出るもの: 直前に取り込んだタグ（`git describe` で自動判定）、コミット数、**新規 migration**、衝突の内訳（modify/delete とそれ以外）。
-新規 migration の有無はデプロイ時のスナップショットの要否に効くので、PR 本文に書く。
+出るもの: 直前に取り込んだタグ（`git describe` で自動判定）、コミット数、**migration の変更**、衝突の内訳（modify/delete とそれ以外）。
+
+- 新規 migration の有無はデプロイ時のスナップショットの要否に効くので、PR 本文に書く
+- 🔴 **既存の migration の変更・削除・リネーム**が出たら、マージする前にユーザーに報告する。
+  適用済みの本番 DB では再実行されず、新規インストールと食い違う（AGENTS.md #3。upstream 側の変更でも影響は同じ）
 
 ## 2. マージと衝突の解決
 
@@ -80,13 +83,34 @@ pnpm --filter misskey-js build && pnpm build-misskey-js-with-types    # autogen 
 node scripts/check-shipping.mjs --base origin/daisskey
 ```
 
-- **乖離ファイル集合**: 一致すれば「upstream の変更を取りこぼしていない」「フォーク改変が消えていない」。
-  ⚠ `package.json` は `+0` を付けるので乖離側に残るのが正常。差が出たらファイルごとに理由を説明できること
+- **乖離ファイル集合**: パスの集合と、両方にあるファイルの**改変行**（`-U0` の +/- 行）を前後で比べる。
+  出たものはファイルごとに理由を説明できること（2026.9.1 の履歴で回すと、#449 で手当てした 3 ファイルがちょうど出る）
+  - ⚠ `package.json` は `+0` を付けるので乖離側に残るのが正常
+  - ⚠ フォークが削除したファイル（削除を維持した workflow）は改変行の比較から外している
+  - 🔴 **何も出なくても「安全」の証明ではない。**改変箇所の外で upstream の意味が変わることはある（それを拾うのが typecheck）
 - 🔴 **backend typecheck は必ず回す**（§3）
 - ⚠ **locale safety の FAIL は、upstream の Crowdin 更新分なら正常。**フォークの locale 差分が追従前と同じ
   （`en-US` / `ja-JP` / `ja-KS` の独自キーだけ）かを `git diff --name-only <新タグ> HEAD -- locales/` で確かめる
+- 🔴 **entity か migration に差分がある版では `check-migrations` を回す**（`git diff --name-only <前タグ> <新タグ> -- packages/backend/src/models packages/backend/migration`）。
+  手順は下の「check-migrations の回し方」
 - backend の unit test は docker（`packages/backend/test/compose.yml`）があれば手元で回せる。改変カタログに載っているサービスに近いものを選ぶ
 - harness（`.claude/`）の監査（`/harness-audit`）は stable の追従で 1 回だけ
+
+### check-migrations の回し方
+
+TypeORM の schema builder が、**migration を当てた DB** とエンティティを比べる。手元の docker（テスト用 DB, ポート 54312）で回す:
+
+```bash
+docker compose -f packages/backend/test/compose.yml down -v && docker compose -f packages/backend/test/compose.yml up -d
+cd packages/backend && pnpm build
+NODE_ENV=test pnpm migrate
+NODE_ENV=test pnpm compile-config && node scripts/check_migrations_clean.js   # ⚠ ここは NODE_ENV を付けない
+pnpm compile-config                                                            # 設定を戻す
+```
+
+- 🔴 **`down -v` で DB を空にしてから。**unit test を回した後の DB には `synchronize` で作られた表が残っている
+- 🔴 **`check_migrations_clean.js` は `NODE_ENV=test` で走らせない。**テスト用の chart エンティティまで比較対象に入り、`__chart__test_*` の差分が大量に出る
+- ⚠ 2026-09-27 時点で `IDX_drive_file_user_root_id_desc` の 1 件が**既知の差**として出る（#454）。それ以外が出たら追従で入ったもの
 
 ## 5. PR
 

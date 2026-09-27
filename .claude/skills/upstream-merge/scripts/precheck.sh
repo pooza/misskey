@@ -17,8 +17,20 @@ echo "new tag:   $NEW"
 echo "commits:   $(git rev-list --count "$PREV..$NEW")"
 echo
 
-echo "== 新規 migration (packages/backend/migration) =="
-git diff --name-only --diff-filter=A "$PREV" "$NEW" -- packages/backend/migration || true
+echo "== migration (packages/backend/migration) =="
+MIG=$(git diff --name-status "$PREV" "$NEW" -- packages/backend/migration)
+if [ -z "$MIG" ]; then
+	echo "(変更なし)"
+else
+	echo "-- 新規"
+	printf '%s\n' "$MIG" | awk '$1 == "A" { print $2 }'
+	# 🔴 既存の migration の変更・削除・リネームは、適用済みの DB では再実行されず新規インストールと食い違う
+	CHANGED=$(printf '%s\n' "$MIG" | awk '$1 != "A"')
+	if [ -n "$CHANGED" ]; then
+		echo "-- 🔴 既存の migration の変更・削除・リネーム（本番 DB と新規インストールが食い違いうる。取り込む前にユーザーに報告する）"
+		printf '%s\n' "$CHANGED"
+	fi
+fi
 echo
 
 echo "== 衝突 =="
