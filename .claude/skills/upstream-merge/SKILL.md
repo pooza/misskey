@@ -138,5 +138,5 @@ pnpm compile-config                                                            #
 
 ## 6. デプロイ
 
-→ pooza/chubo2 の `.claude/skills/misskey-deploy/`（`/misskey-deploy`。chubo2 のセッションから呼ぶ）。
+→ `/misskey-deploy`（入口は [misskey-deploy](../misskey-deploy/SKILL.md)。正本は pooza/chubo2 の同名 skill）。
 dev27 → 確認 → 了承 → vulcan。新規 migration がある版は vulcan で DB のスナップショットを必ず取る。

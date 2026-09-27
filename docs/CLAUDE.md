@@ -77,7 +77,7 @@ capsicum は汎用の Misskey / Mastodon クライアントであって、この
 
 - **フォーク追加ファイル**（`WidgetTagset.vue`、`utility/program-schedule.ts` 等）は衝突しない。
   衝突するのは**上流ファイルに手を入れた箇所**——下の「フォーク改変カタログ」がそれ
-- デプロイの手順は pooza/chubo2 の skill `misskey-deploy`
+- デプロイは `/misskey-deploy`（入口は [`.claude/skills/misskey-deploy/`](../.claude/skills/misskey-deploy/SKILL.md)、正本は pooza/chubo2 の同名 skill）
 
 ### バージョン番号（`<上流版>+N`）
 
