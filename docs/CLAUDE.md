@@ -72,11 +72,12 @@ capsicum は汎用の Misskey / Mastodon クライアントであって、この
 
 ## upstream 追従
 
-- upstream のタグを `merge/<version>` ブランチで取り込んでから `daisskey` へ入れる
-  （履歴に `Merge tag '2026.7.0' into merge/2026.7.0` が残っている）
+⚠⚠ **手順の正本は skill [`.claude/skills/upstream-merge/`](../.claude/skills/upstream-merge/SKILL.md)**（`/upstream-merge` で明示呼び出し）。
+ここには書かない（#451）。
+
 - **フォーク追加ファイル**（`WidgetTagset.vue`、`utility/program-schedule.ts` 等）は衝突しない。
   衝突するのは**上流ファイルに手を入れた箇所**——下の「フォーク改変カタログ」がそれ
-- harness（`.claude/`）の検証は **stable 後に 1 回**。alpha / RC では回さない
+- デプロイの手順は pooza/chubo2 の skill `misskey-deploy`
 
 ### バージョン番号（`<上流版>+N`）
 
