@@ -43,7 +43,18 @@ if [ -z "$CONFLICTS" ]; then
 	echo "(なし)"
 	exit 0
 fi
-echo "-- modify/delete（フォークが削除済みのものを upstream が更新。原則として削除を維持）"
-printf '%s\n' "$CONFLICTS" | grep 'modify/delete' | sed -E 's/^CONFLICT \(modify\/delete\): ([^ ]+) deleted in.*/\1/' || true
+MD=$(printf '%s\n' "$CONFLICTS" | grep 'modify/delete' | sed -E 's/^CONFLICT \(modify\/delete\): ([^ ]+) deleted in.*/\1/' || true)
+# どちら側が消したかは、ベースにそのファイルがあるかで判定する（メッセージ中のリビジョン名には頼らない）
+FORK_DELETED=""; UPSTREAM_DELETED=""
+while IFS= read -r f; do
+	[ -z "$f" ] && continue
+	if git cat-file -e "$BASE:$f" 2>/dev/null; then UPSTREAM_DELETED+="$f"$'\n'; else FORK_DELETED+="$f"$'\n'; fi
+done <<< "$MD"
+echo "-- modify/delete: フォークが削除済みのものを upstream が更新（原則として削除を維持）"
+printf '%s' "$FORK_DELETED"
+if [ -n "$UPSTREAM_DELETED" ]; then
+	echo "-- 🔴 modify/delete: フォークが改変しているものを upstream が削除・リネーム（削除を維持しない。移動先と役割を確かめる）"
+	printf '%s' "$UPSTREAM_DELETED"
+fi
 echo "-- それ以外（中身を見て解決する）"
 printf '%s\n' "$CONFLICTS" | grep -v 'modify/delete' || true

@@ -51,12 +51,16 @@ upstream のタグ ──merge──▶ merge/<版>（daisskey から切る）�
 
 ```bash
 git switch -c merge/<版> origin/daisskey
+# マージ前の frontend typecheck のエラー一覧を控える（既存のエラーがあるので、前後の差で見る。§4）
+pnpm install --frozen-lockfile
+pnpm --filter frontend typecheck 2>&1 | grep 'error TS' | sed -E 's/\([0-9]+,[0-9]+\)//' | sort > /tmp/frontend-tsc-before.txt
 git merge <新タグ>            # → "Merge tag '<版>' into merge/<版>"
 ```
 
 | 衝突 | 解決 |
 | --- | --- |
-| `.github/workflows/*.yml` の **modify/delete** | **削除を維持**（`git rm`）。フォークは不要な CI を削っている（docs/CLAUDE.md「CI とレビュー体制」） |
+| `.github/workflows/*.yml` の **modify/delete（フォークが削除済み）** | **削除を維持**（`git rm`）。フォークは不要な CI を削っている（docs/CLAUDE.md「CI とレビュー体制」） |
+| 🔴 **modify/delete（upstream が削除・リネーム）** | **削除を維持しない。**フォークが残して改変しているもの（例: `check-spdx-license-id.yml` は AGENTS.md #1 の CI 検査）なので、移動先と役割を確かめてからユーザーに報告する。`precheck.sh` が 🔴 付きで分けて出す |
 | フォークが残した workflow（`check-misskey-js-autogen.yml` / `check-spdx-license-id.yml` など）の中身の衝突 | **フォーク版を維持**し、upstream のアクションの版上げ（`actions/checkout@...` など）だけ取り込む |
 | ルートの `package.json` の `version` | 🔴 **`<上流版>+0`**（例 `2026.10.0+0`）。素の上流版にしない（docs/CLAUDE.md「バージョン番号」）。`packages/*/package.json` は上流の版のまま |
 | `AGENTS.md` / `.github/copilot-instructions.md` / `.claude/skills/*` | 上流の更新を取り込みつつ、**`⚠ フォーク:` の注記を落とさない** |
@@ -89,6 +93,13 @@ node scripts/check-shipping.mjs --base origin/daisskey
   - ⚠ フォークが削除したファイル（削除を維持した workflow）は改変行の比較から外している
   - 🔴 **何も出なくても「安全」の証明ではない。**改変箇所の外で upstream の意味が変わることはある（それを拾うのが typecheck）
 - 🔴 **backend typecheck は必ず回す**（§3）
+- 🔴 **frontend typecheck もマージ前と比べる。**フォーク独自のコンポーネント（`WidgetTagset.vue` など）は upstream の型が変わっても
+  衝突せず、変更ファイル限定の lint にも入らない。⚠ 2026-09-27 時点で既存のエラーが 37 件ある（`WidgetTagset.vue` の 3 件を含む。#455）ので、0 件は期待できない。
+  §2 で控えた一覧との差分で見る:
+  ```bash
+  pnpm --filter frontend typecheck 2>&1 | grep 'error TS' | sed -E 's/\([0-9]+,[0-9]+\)//' | sort > /tmp/frontend-tsc-after.txt
+  comm -13 /tmp/frontend-tsc-before.txt /tmp/frontend-tsc-after.txt   # 増えたエラー。空であること
+  ```
 - ⚠ **locale safety の FAIL は、upstream の Crowdin 更新分なら正常。**フォークの locale 差分が追従前と同じ
   （`en-US` / `ja-JP` / `ja-KS` の独自キーだけ）かを `git diff --name-only <新タグ> HEAD -- locales/` で確かめる
 - 🔴 **`check-migrations` は毎回回す**（手順は下の「check-migrations の回し方」）。
