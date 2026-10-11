@@ -10,6 +10,7 @@ import { MiDriveFolder } from './DriveFolder.js';
 
 @Entity('drive_file')
 @Index(['userId', 'folderId', 'id'])
+@Index('IDX_drive_file_user_root_id_desc', { synchronize: false }) // partial index ("userId", "id" DESC) WHERE "folderId" IS NULL, created by migration
 export class MiDriveFile {
 	@PrimaryColumn(id())
 	public id: string;
