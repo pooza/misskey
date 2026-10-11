@@ -94,7 +94,7 @@ node scripts/check-shipping.mjs --base origin/daisskey
   - 🔴 **何も出なくても「安全」の証明ではない。**改変箇所の外で upstream の意味が変わることはある（それを拾うのが typecheck）
 - 🔴 **backend typecheck は必ず回す**（§3）
 - 🔴 **frontend typecheck もマージ前と比べる。**フォーク独自のコンポーネント（`WidgetTagset.vue` など）は upstream の型が変わっても
-  衝突せず、変更ファイル限定の lint にも入らない。⚠ 2026-09-27 時点で既存のエラーが 37 件ある（`WidgetTagset.vue` の 3 件を含む。#455）ので、0 件は期待できない。
+  衝突せず、変更ファイル限定の lint にも入らない。⚠ 2026-10-11 時点で既存のエラーが 34 件ある（すべて upstream 由来のファイル。フォーク独自ファイルの分は #455 で 0 件にした）ので、0 件は期待できない。
   §2 で控えた一覧との差分で見る:
   ```bash
   pnpm --filter frontend typecheck 2>&1 | grep 'error TS' | sed -E 's/\([0-9]+,[0-9]+\)//' | sort > /tmp/frontend-tsc-after.txt
@@ -124,7 +124,7 @@ pnpm compile-config                                                            #
   **前に `.config/default.yml` から作った設定のまま**、テスト用ではない DB へ migrate しうる
 - 🔴 **`down -v` で DB を空にしてから。**unit test を回した後の DB には `synchronize` で作られた表が残っている
 - 🔴 **`check_migrations_clean.js` は `NODE_ENV=test` で走らせない。**テスト用の chart エンティティまで比較対象に入り、`__chart__test_*` の差分が大量に出る
-- ⚠ 2026-09-27 時点で `IDX_drive_file_user_root_id_desc` の 1 件が**既知の差**として出る（#454）。それ以外が出たら追従で入ったもの
+- `All migrations are clean.` が正常（既知の差だった `IDX_drive_file_user_root_id_desc` は #454 で解消した）。1 件でも出たら追従で入ったもの
 
 ## 5. PR
 
