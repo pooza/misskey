@@ -70,6 +70,8 @@ const { widgetProps, configure } = useWidgetPropsManager(name, widgetPropsDef, p
 
 const { model: programSelected, def: tagsetSelectDef } = useMkSelect({
 	items: options,
+	// 未選択を null で表す。選択肢に null の項目は無いので、型は明示して広げる
+	initialValue: null as string | null,
 });
 
 defineExpose<WidgetComponentExpose>({
@@ -164,7 +166,7 @@ useInterval(() => {
 });
 
 const setPrograms = async () => {
-	const selected = programSelected.value as string | undefined;
+	const selected = programSelected.value;
 	if (!selected) return;
 
 	if (selected === 'episode_browser') {
