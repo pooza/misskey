@@ -14,7 +14,7 @@ import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { matchesDefaultTagPacked } from '@/misc/default-tag.js';
 import { loadConfig } from '@/config.js';
 
 @Injectable({ scope: Scope.TRANSIENT })
@@ -62,11 +62,7 @@ export class LocalTimelineChannel extends Channel {
 		if (this.defaultTag == null) {
 			if (note.user.host !== null) return;
 		} else {
-			const tag = normalizeForSearch(this.defaultTag);
-			const hasDefaultTag = (tags?: string[] | null) => (tags ?? []).some(t => t.toLowerCase() === tag);
-			// 本文を持たないローカルのリノートはタグを持てないので、リノート先のタグで判定する
-			const isLocalPureRenoteOfTagged = note.user.host === null && isRenotePacked(note) && !isQuotePacked(note) && hasDefaultTag(note.renote?.tags);
-			if (!hasDefaultTag(note.tags) && !isLocalPureRenoteOfTagged) return;
+			if (!matchesDefaultTagPacked(note, this.defaultTag)) return;
 		}
 		if (note.visibility !== 'public') return;
 		if (note.channelId != null) return;

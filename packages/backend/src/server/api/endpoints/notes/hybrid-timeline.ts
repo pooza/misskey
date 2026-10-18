@@ -21,7 +21,7 @@ import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointServ
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { ApiError } from '../../error.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { defaultTagBrackets } from '@/misc/default-tag.js';
 import { loadConfig } from '@/config.js';
 
 export const meta = {
@@ -115,6 +115,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					includeLocalRenotes: ps.includeLocalRenotes,
 					withFiles: ps.withFiles,
 					withReplies: ps.withReplies,
+					withRenotes: ps.withRenotes,
 				}, me);
 
 				process.nextTick(() => {
@@ -177,6 +178,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					includeLocalRenotes: ps.includeLocalRenotes,
 					withFiles: ps.withFiles,
 					withReplies: ps.withReplies,
+					withRenotes: ps.withRenotes,
 				}, me),
 			});
 
@@ -197,6 +199,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		includeLocalRenotes: boolean,
 		withFiles: boolean,
 		withReplies: boolean,
+		withRenotes: boolean,
 	}, me: MiLocalUser) {
 		const followees = await this.userFollowingService.getFollowees(me.id);
 
@@ -221,7 +224,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (defaultTag == null) {
 					qb.orWhere('(note.visibility = \'public\') AND (note.userHost IS NULL)');
 				} else {
-					qb.orWhere(`(note.visibility = 'public') AND (:t <@ note.tags`, { t: [normalizeForSearch(defaultTag)] });
+					qb.orWhere(new Brackets(qb => {
+						qb.where('note.visibility = \'public\'');
+						qb.andWhere(defaultTagBrackets(defaultTag, ps.withRenotes));
+					}));
 				}
 			}))
 			.innerJoinAndSelect('note.user', 'user')

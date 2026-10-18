@@ -12,7 +12,7 @@ import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { matchesDefaultTagPacked } from '@/misc/default-tag.js';
 import { loadConfig } from '@/config.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
@@ -63,11 +63,8 @@ export class HybridTimelineChannel extends Channel {
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
 		if (!note.channelId) {
-			let matched = false;
-			if (this.defaultTag != null) {
-				const noteTags = note.tags ? note.tags.map((t: string) => t.toLowerCase()) : [];
-				matched = noteTags.includes(normalizeForSearch(this.defaultTag));
-			}
+			// デフォルトタグ運用では、ローカルの代わりにデフォルトタグの定義で通す (ローカル TL と同じ)
+			const isLocal = this.defaultTag == null ? note.user.host == null : matchesDefaultTagPacked(note, this.defaultTag);
 
 			// 以下の条件に該当するノートのみ後続処理に通す（ので、以下のif文は該当しないノートをすべて弾くようにする）
 			// - 自分自身の投稿
@@ -76,7 +73,7 @@ export class HybridTimelineChannel extends Channel {
 			if (!(
 				isMe ||
 				Object.hasOwn(this.following, note.userId) ||
-				((note.user.host == null || matched) && (note.visibility === 'public'))
+				(isLocal && (note.visibility === 'public'))
 			)) {
 				return;
 			}

@@ -24,6 +24,7 @@ import { MiPoll } from '@/models/Poll.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import type { MiChannel } from '@/models/Channel.js';
 import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { matchesDefaultTag } from '@/misc/default-tag.js';
 import { RelayService } from '@/core/RelayService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { DI } from '@/di-symbols.js';
@@ -1178,11 +1179,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			// デフォルトハッシュタグを含む投稿は、リモートであってもローカルタイムラインに含める
 			const defaultTag = this.config.defaultTag?.tag;
 			if (defaultTag != null) {
-				const tag = normalizeForSearch(defaultTag);
-				const hasDefaultTag = (tags?: string[] | null) => (tags ?? []).some(t => t.toLowerCase() === tag);
-				// 本文を持たないローカルのリノートはタグを持てないので、リノート先のタグで判定する
-				const isLocalPureRenoteOfTagged = note.userHost == null && isRenote(note) && !isQuote(note) && hasDefaultTag(note.renote?.tags);
-				if (note.visibility === 'public' && (hasDefaultTag(note.tags) || isLocalPureRenoteOfTagged)) {
+				if (note.visibility === 'public' && matchesDefaultTag(note, defaultTag)) {
 					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
