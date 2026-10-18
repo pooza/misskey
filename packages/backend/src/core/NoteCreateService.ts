@@ -1176,9 +1176,13 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 
 			// デフォルトハッシュタグを含む投稿は、リモートであってもローカルタイムラインに含める
-			if (this.config.defaultTag?.tag != null) {
-				const noteTags = note.tags ? note.tags.map((t: string) => t.toLowerCase()) : [];
-				if (note.visibility === 'public' && noteTags.includes(normalizeForSearch(this.config.defaultTag?.tag))) {
+			const defaultTag = this.config.defaultTag?.tag;
+			if (defaultTag != null) {
+				const tag = normalizeForSearch(defaultTag);
+				const hasDefaultTag = (tags?: string[] | null) => (tags ?? []).some(t => t.toLowerCase() === tag);
+				// 本文を持たないローカルのリノートはタグを持てないので、リノート先のタグで判定する
+				const isLocalPureRenoteOfTagged = note.userHost == null && isRenote(note) && !isQuote(note) && hasDefaultTag(note.renote?.tags);
+				if (note.visibility === 'public' && (hasDefaultTag(note.tags) || isLocalPureRenoteOfTagged)) {
 					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
@@ -1191,7 +1195,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 			if (isReply(note)) {
 				this.fanoutTimelineService.push(`userTimelineWithReplies:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 
-				if (note.visibility === 'public' && note.userHost == null) {
+				// デフォルトタグ運用では、ローカルタイムラインへの push は上のタグ判定だけで行う
+				if (defaultTag == null && note.visibility === 'public' && note.userHost == null) {
 					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					if (note.replyUserHost == null) {
 						this.fanoutTimelineService.push(`localTimelineWithReplyTo:${note.replyUserId}`, note.id, 300 / 10, r);
@@ -1203,7 +1208,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					this.fanoutTimelineService.push(`userTimelineWithFiles:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax / 2 : this.meta.perRemoteUserUserTimelineCacheMax / 2, r);
 				}
 
-				if (note.visibility === 'public' && note.userHost == null) {
+				if (defaultTag == null && note.visibility === 'public' && note.userHost == null) {
 					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
 						this.fanoutTimelineService.push('localTimelineWithFiles', note.id, 500, r);

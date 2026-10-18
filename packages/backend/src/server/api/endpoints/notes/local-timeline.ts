@@ -160,7 +160,20 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (defaultTag == null) {
 					qb.andWhere('note.userHost IS NULL');
 				} else {
-					qb.andWhere(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] });
+					qb.andWhere(new Brackets(qb => {
+						qb.where(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] });
+						// 本文を持たないローカルのリノートはタグを持てないので、リノート先のタグで判定する
+						qb.orWhere(new Brackets(qb => {
+							qb.where('note.userHost IS NULL');
+							qb.andWhere('note.renoteId IS NOT NULL');
+							qb.andWhere('note.text IS NULL');
+							qb.andWhere('note.cw IS NULL');
+							qb.andWhere('note.replyId IS NULL');
+							qb.andWhere('note.hasPoll = FALSE');
+							qb.andWhere('note.fileIds = \'{}\'');
+							qb.andWhere(':t <@ renote.tags');
+						}));
+					}));
 				}
 			}))
 			.innerJoinAndSelect('note.user', 'user')

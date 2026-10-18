@@ -62,8 +62,11 @@ export class LocalTimelineChannel extends Channel {
 		if (this.defaultTag == null) {
 			if (note.user.host !== null) return;
 		} else {
-			const noteTags = note.tags ? note.tags.map((t: string) => t.toLowerCase()) : [];
-			if (!noteTags.includes(normalizeForSearch(this.defaultTag))) return;
+			const tag = normalizeForSearch(this.defaultTag);
+			const hasDefaultTag = (tags?: string[] | null) => (tags ?? []).some(t => t.toLowerCase() === tag);
+			// 本文を持たないローカルのリノートはタグを持てないので、リノート先のタグで判定する
+			const isLocalPureRenoteOfTagged = note.user.host === null && isRenotePacked(note) && !isQuotePacked(note) && hasDefaultTag(note.renote?.tags);
+			if (!hasDefaultTag(note.tags) && !isLocalPureRenoteOfTagged) return;
 		}
 		if (note.visibility !== 'public') return;
 		if (note.channelId != null) return;
