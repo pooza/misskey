@@ -17,7 +17,7 @@ import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ApiError } from '../../error.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { defaultTagBrackets } from '@/misc/default-tag.js';
 import { loadConfig } from '@/config.js';
 
 export const meta = {
@@ -99,6 +99,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					limit: ps.limit,
 					withFiles: ps.withFiles,
 					withReplies: ps.withReplies,
+					withRenotes: ps.withRenotes,
 				}, me);
 
 				process.nextTick(() => {
@@ -130,6 +131,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					limit,
 					withFiles: ps.withFiles,
 					withReplies: ps.withReplies,
+					withRenotes: ps.withRenotes,
 				}, me),
 			});
 
@@ -149,6 +151,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		limit: number,
 		withFiles: boolean,
 		withReplies: boolean,
+		withRenotes: boolean,
 	}, me: MiLocalUser | null) {
 		const config = loadConfig();
 		const defaultTag: string | null = config.defaultTag?.tag;
@@ -160,7 +163,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (defaultTag == null) {
 					qb.andWhere('note.userHost IS NULL');
 				} else {
-					qb.andWhere(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] });
+					qb.andWhere(defaultTagBrackets(defaultTag, ps.withRenotes));
 				}
 			}))
 			.innerJoinAndSelect('note.user', 'user')

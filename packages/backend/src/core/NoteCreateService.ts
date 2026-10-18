@@ -24,6 +24,7 @@ import { MiPoll } from '@/models/Poll.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import type { MiChannel } from '@/models/Channel.js';
 import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { matchesDefaultTag } from '@/misc/default-tag.js';
 import { RelayService } from '@/core/RelayService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { DI } from '@/di-symbols.js';
@@ -1176,9 +1177,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 
 			// デフォルトハッシュタグを含む投稿は、リモートであってもローカルタイムラインに含める
-			if (this.config.defaultTag?.tag != null) {
-				const noteTags = note.tags ? note.tags.map((t: string) => t.toLowerCase()) : [];
-				if (note.visibility === 'public' && noteTags.includes(normalizeForSearch(this.config.defaultTag?.tag))) {
+			const defaultTag = this.config.defaultTag?.tag;
+			if (defaultTag != null) {
+				if (note.visibility === 'public' && matchesDefaultTag(note, defaultTag)) {
 					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
@@ -1191,7 +1192,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 			if (isReply(note)) {
 				this.fanoutTimelineService.push(`userTimelineWithReplies:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 
-				if (note.visibility === 'public' && note.userHost == null) {
+				// デフォルトタグ運用では、ローカルタイムラインへの push は上のタグ判定だけで行う
+				if (defaultTag == null && note.visibility === 'public' && note.userHost == null) {
 					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					if (note.replyUserHost == null) {
 						this.fanoutTimelineService.push(`localTimelineWithReplyTo:${note.replyUserId}`, note.id, 300 / 10, r);
@@ -1203,7 +1205,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					this.fanoutTimelineService.push(`userTimelineWithFiles:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax / 2 : this.meta.perRemoteUserUserTimelineCacheMax / 2, r);
 				}
 
-				if (note.visibility === 'public' && note.userHost == null) {
+				if (defaultTag == null && note.visibility === 'public' && note.userHost == null) {
 					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
 						this.fanoutTimelineService.push('localTimelineWithFiles', note.id, 500, r);

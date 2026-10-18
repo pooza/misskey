@@ -14,7 +14,7 @@ import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { matchesDefaultTagPacked } from '@/misc/default-tag.js';
 import { loadConfig } from '@/config.js';
 
 @Injectable({ scope: Scope.TRANSIENT })
@@ -62,8 +62,7 @@ export class LocalTimelineChannel extends Channel {
 		if (this.defaultTag == null) {
 			if (note.user.host !== null) return;
 		} else {
-			const noteTags = note.tags ? note.tags.map((t: string) => t.toLowerCase()) : [];
-			if (!noteTags.includes(normalizeForSearch(this.defaultTag))) return;
+			if (!matchesDefaultTagPacked(note, this.defaultTag)) return;
 		}
 		if (note.visibility !== 'public') return;
 		if (note.channelId != null) return;
