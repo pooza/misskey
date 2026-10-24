@@ -28,7 +28,7 @@ type MfmProps = MfmBaseProps & {
 };
 
 // 本文中の URL は短縮して表示する（描画部は埋め込みと共有なので、ここで包む）
-const MkUrlShortened: FunctionalComponent = (_, { attrs }) => h(MkUrl, { ...attrs, shorten: true });
+const MkUrlShortened: FunctionalComponent<InstanceType<typeof MkUrl>['$props']> = (props) => h(MkUrl, { ...props, shorten: true });
 
 // eslint-disable-next-line import/no-default-export
 export default createMfmRenderer<MfmProps>({
