@@ -154,6 +154,8 @@ defaultTag:
 | `frontend/src/widgets/WidgetTagset.vue` | モロヘイヤ番組表と連携する実況用ウィジェット（`WidgetKoteitag` の後継、#384） |
 | `frontend/src/utility/program-schedule.ts` | 番組表の放送日時ラベル。**3 クライアントで書式を共有**（後述） |
 | `frontend/src/components/MkLink.vue` | `/mulukhiya` 配下の URL を外部リンク扱いしない |
+| `frontend/src/components/global/MkUrl.vue` + `MkMfm.ts` | 本文中の URL を短縮表示する（`shorten`: スキーマ・クエリ・ハッシュを省き、パスを 16 文字で省略）。MkMfm が `MkUrl` を `shorten: true` 付きで包んで描画部に渡す。⚠ 描画部 `frontend-shared/js/mfm-renderer.ts` は埋め込み（EmMfm）と共有なので、そちらには手を入れない（2026.10.1・#463） |
+| `backend/src/core/MfmService.ts` の `toHtml` | Mastodon 互換のため段落を `<p>` で囲む（#403）。⚠ upstream の `test/unit/MfmService.ts` / `ApMfmService.ts` の 6 件はこれに追随しておらず、**既知の失敗**（BASELINE） |
 | `frontend/src/utility/get-note-menu.ts` | ノートメニューからモロヘイヤの status 画面を開く |
 | `frontend/src/ui/_common_/navbar.vue` ほか | インスタンス branding |
 | `frontend/src/pages/admin/custom-emojis-manager2.vue` | カスタム絵文字管理の独自版 |
