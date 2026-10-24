@@ -18,7 +18,7 @@ import { QueryService } from '@/core/QueryService.js';
 import { IdService } from '@/core/IdService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type { Index, Meilisearch } from 'meilisearch';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 
 type K = string;
 type V = string | number | boolean;
@@ -144,7 +144,7 @@ export class SearchService {
 		// ⚠ フォーク: defaultTag 運用では host='.' がデフォルトタグ付きのリモート投稿も含む (#338 / #442)。
 		// scope が local / ホスト指定でも、それらを index しておかないと「ローカル」検索から引けない。
 		const defaultTag = this.config.defaultTag?.tag;
-		const hasDefaultTag = defaultTag != null && note.tags.includes(normalizeForSearch(defaultTag));
+		const hasDefaultTag = defaultTag != null && note.tags.includes(normalizeTag(defaultTag));
 
 		switch (this.meilisearchIndexScope) {
 			case 'global':
@@ -246,7 +246,7 @@ export class SearchService {
 				const defaultTag = this.config.defaultTag?.tag;
 				if (defaultTag != null) {
 					query.andWhere(new Brackets(qb => {
-						qb.where(':t <@ note.tags', { t: [normalizeForSearch(defaultTag)] })
+						qb.where(':t <@ note.tags', { t: [normalizeTag(defaultTag)] })
 							.orWhere('note.userHost IS NULL');
 					}));
 				} else {
@@ -321,7 +321,7 @@ export class SearchService {
 					filter.qs.push({
 						op: 'or',
 						qs: [
-							{ op: '=', k: 'tags', v: normalizeForSearch(defaultTag) },
+							{ op: '=', k: 'tags', v: normalizeTag(defaultTag) },
 							{ op: 'is null', k: 'userHost' },
 						],
 					});

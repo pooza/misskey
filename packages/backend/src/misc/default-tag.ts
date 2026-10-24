@@ -12,10 +12,10 @@ import { Brackets } from 'typeorm';
 import type { MiNote } from '@/models/Note.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { isQuote, isQuotePacked, isRenote, isRenotePacked } from '@/misc/is-renote.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 
 function hasDefaultTag(tags: string[] | null | undefined, defaultTag: string): boolean {
-	const tag = normalizeForSearch(defaultTag);
+	const tag = normalizeTag(defaultTag);
 	return (tags ?? []).some(t => t.toLowerCase() === tag);
 }
 
@@ -35,7 +35,7 @@ export function matchesDefaultTagPacked(note: Packed<'Note'>, defaultTag: string
  */
 export function defaultTagBrackets(defaultTag: string, includeLocalPureRenotes: boolean): Brackets {
 	return new Brackets(qb => {
-		qb.where(':defaultTag <@ note.tags', { defaultTag: [normalizeForSearch(defaultTag)] });
+		qb.where(':defaultTag <@ note.tags', { defaultTag: [normalizeTag(defaultTag)] });
 		if (!includeLocalPureRenotes) return;
 		qb.orWhere(new Brackets(qb => {
 			qb.where('note.userHost IS NULL');

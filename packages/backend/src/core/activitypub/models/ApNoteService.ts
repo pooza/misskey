@@ -26,7 +26,7 @@ import { bindThis } from '@/decorators.js';
 import { checkHttps } from '@/misc/check-https.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { extractHashtags } from '@/misc/extract-hashtags.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { getOneApId, getApId, getOneApHrefNullable, validPost, isEmoji, getApType } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
@@ -201,8 +201,8 @@ export class ApNoteService {
 		if (apHashtags.length > 0) {
 			const currentText = text ?? '';
 			const tokens = currentText ? mfm.parse(currentText) : [];
-			const existingTags = new Set(extractHashtags(tokens).map(t => normalizeForSearch(t)));
-			const missingTags = apHashtags.filter(tag => !existingTags.has(normalizeForSearch(tag)));
+			const existingTags = new Set(extractHashtags(tokens).map(t => normalizeTag(t)));
+			const missingTags = apHashtags.filter(tag => !existingTags.has(normalizeTag(tag)));
 			if (missingTags.length > 0) {
 				const hashtagText = missingTags.map(tag => `#${tag}`).join(' ');
 				text = currentText ? `${currentText}\n\n${hashtagText}` : hashtagText;
@@ -329,7 +329,7 @@ export class ApNoteService {
 		const apEmojis = emojis.map(emoji => emoji.name);
 
 		// block spam
-		if ((actor.host != null) && (actor.followersCount == 0) && (1 < noteAudience.mentionedUsers.length)) {
+		if ((actor.host != null) && (actor.followersCount === 0) && (1 < noteAudience.mentionedUsers.length)) {
 			throw new IdentifiableError('d3e2e185-4469-4e4a-985c-943640de7d72', `Spam blocked: remote user with no followers mentioned ${noteAudience.mentionedUsers.length} users`);
 		}
 
