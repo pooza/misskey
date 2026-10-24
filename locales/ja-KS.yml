@@ -2658,6 +2658,7 @@ _deck:
     antenna: "アンテナ"
     list: "リスト"
     channel: "チャンネル"
+    clip: "クリップ"
     mentions: "あんた宛て"
     direct: "ダイレクト"
     roleTimeline: "ロールタイムライン"
