@@ -251,8 +251,8 @@ API 仕様の正本は
 
 ⚠ **`.github/misskey/test.yml` 自体は upstream から戻した。**これは workflow ではなく
 **backend テストの設定**で、`.config/test.yml` の元になる。⚠⚠ **無いと
-`pnpm test` / `test:e2e` / `test:fed` が起動しない**（各スクリプトが内部で
-`compile-config` を呼ぶ）。`.claude/skills/working-on-backend/` も
+`pnpm test` / `test:e2e` / `test:fed` が起動しない**（各スクリプトが `NODE_ENV=test` で
+`.config/test.yml` を読む）。`.claude/skills/working-on-backend/` も
 `.github/copilot-instructions.md` も**このファイルから `.config/test.yml` を作れと書いている**ので、
 落ちたままだとローカル検証の手順ごと成立しない。
 **冗長な CI は削るが、テストの前提ファイルは残す。**
