@@ -75,6 +75,9 @@ git merge <新タグ>            # → "Merge tag '<版>' into merge/<版>"
 | 2026.9.1（#449） | `CleanRemoteNotesProcessorService` の戻り値に upstream が `cursor` を足したが、フォーク独自の 57014 タイムアウト早期 return には無く、typecheck が落ちた | 早期 return でも保存済みカーソルを返す |
 | 2026.9.0（#437） | upstream が `scripts/check-spdx.mjs` / `check-shipping.mjs` を持ち込んだ。`check-shipping.mjs` は `daisskey` を知らない | `--base origin/daisskey` を付ける旨を shipping-misskey-change に注記 |
 
+| 2026.11.0 | 上流が `compile-config` を撤去し、この skill の check-migrations 手順がそのままでは動かなくなった | `MISSKEY_CONFIG_YML=test.yml` で設定を差し替える（§4） |
+| 2026.11.0 | 依存（`etiket`）が `node >=24` を要求し、Node 22 では `pnpm install` が `ERR_PNPM_UNSUPPORTED_ENGINE` で落ちた | 手元も `.node-version` の版で回す。⚠ Node 25 以降は corepack が同梱されないので `npm i -g corepack && corepack enable pnpm` |
+
 新しく踏んだらこの表に足す。
 
 ## 4. 検証
@@ -116,12 +119,13 @@ test -f .config/test.yml || cp .github/misskey/test.yml .config/test.yml
 docker compose -f packages/backend/test/compose.yml down -v && docker compose -f packages/backend/test/compose.yml up -d
 cd packages/backend && pnpm build
 NODE_ENV=test pnpm migrate
-NODE_ENV=test pnpm compile-config && node scripts/check_migrations_clean.js   # ⚠ ここは NODE_ENV を付けない
-pnpm compile-config                                                            # 設定を戻す
+MISSKEY_CONFIG_YML=test.yml node scripts/check_migrations_clean.js   # ⚠ ここは NODE_ENV を付けない
 ```
 
-- 🔴 **`.config/test.yml` が無いまま進めない。**無いと `compile-config` は警告だけ出して `built/.config.json` を書き換えず、
-  **前に `.config/default.yml` から作った設定のまま**、テスト用ではない DB へ migrate しうる
+- ⚠ **2026.11.0 で `compile-config`（`built/.config.json`）は上流が撤去した**（#17411 の revert）。
+  設定は起動のたびに YAML から読み、`NODE_ENV=test` なら `.config/test.yml`、`MISSKEY_CONFIG_YML` があればそのファイルになる
+- 🔴 **`.config/test.yml` が無いまま進めない。**無いと読み込みで落ちる。`MISSKEY_CONFIG_YML` を付け忘れると
+  `.config/default.yml`（テスト用ではない DB）を見る
 - 🔴 **`down -v` で DB を空にしてから。**unit test を回した後の DB には `synchronize` で作られた表が残っている
 - 🔴 **`check_migrations_clean.js` は `NODE_ENV=test` で走らせない。**テスト用の chart エンティティまで比較対象に入り、`__chart__test_*` の差分が大量に出る
 - `All migrations are clean.` が正常（既知の差だった `IDX_drive_file_user_root_id_desc` は #454 で解消した）。1 件でも出たら追従で入ったもの

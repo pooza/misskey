@@ -39,7 +39,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      # generate-api-json が内部で compile-config を呼ぶので設定ファイルが要る
+      # generate-api-json が設定ファイル (.config/default.yml) を読むので要る
       - name: Prepare config
         run: cp .config/example.yml .config/default.yml
 
