@@ -10,22 +10,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@contextmenu.stop="() => {}"
 >
 	<template v-if="!self">
-		<span v-if="schema" :class="$style.schema">{{ schema }}//</span>
-		<span :class="$style.hostname">{{ hostname }}</span>
-		<span v-if="port != ''">:{{ port }}</span>
+		<span v-if="urlForDisplay.schema" :class="$style.schema">{{ urlForDisplay.schema }}//</span>
+		<span :class="$style.hostname">{{ urlForDisplay.hostname }}</span>
+		<span v-if="urlForDisplay.port != ''">:{{ urlForDisplay.port }}</span>
 	</template>
-	<template v-if="pathname === '/' && self">
-		<span :class="$style.self">{{ hostname }}</span>
+	<template v-if="urlForDisplay.pathname === '/' && self">
+		<span :class="$style.self">{{ urlForDisplay.hostname }}</span>
 	</template>
-	<span v-if="pathname != ''" :class="$style.pathname">{{ self ? pathname.substring(1) : pathname }}</span>
-	<span :class="$style.query">{{ query }}</span>
-	<span :class="$style.hash">{{ hash }}</span>
+	<span v-if="urlForDisplay.pathname != ''" :class="$style.pathname">{{ self ? urlForDisplay.pathname.substring(1) : urlForDisplay.pathname }}</span>
+	<span :class="$style.query">{{ urlForDisplay.query }}</span>
+	<span :class="$style.hash">{{ urlForDisplay.hash }}</span>
 	<i v-if="target === '_blank'" :class="$style.icon" class="ti ti-external-link"></i>
 </component>
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, ref } from 'vue';
+import { defineAsyncComponent, computed, ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import { url as local } from '@@/js/config.js';
 import { maybeMakeRelative, parseUrlForDisplay } from '@@/js/url.js';
 import type { MkABehavior } from '@/components/global/MkA.vue';
@@ -55,18 +56,34 @@ const props = withDefaults(defineProps<{
 	shorten: false,
 });
 
-const maybeRelativeUrl = maybeMakeRelative(props.url, local);
-const self = maybeRelativeUrl !== props.url;
-const parsed = parseUrlForDisplay(props.url);
-const schema = props.shorten ? null : parsed.schema;
-const { hostname, port } = parsed;
-const pathname = props.shorten ? ellipsize(parsed.pathname, 16) : parsed.pathname;
-const query = props.shorten ? null : parsed.query;
-const hash = props.shorten ? null : parsed.hash;
+const maybeRelativeUrl = computed(() => maybeMakeRelative(props.url, local));
+const self = computed(() => maybeRelativeUrl.value !== props.url);
+const urlForDisplay = computed(() => {
+	const parsed = parseUrlForDisplay(props.url);
+	if (!props.shorten) return parsed;
+	return {
+		...parsed,
+		schema: '',
+		pathname: ellipsize(parsed.pathname, 16),
+		query: '',
+		hash: '',
+	};
+});
+const attr = computed(() => self.value ? 'to' : 'href');
+const target = computed(() => self.value ? null : '_blank');
+
 const el = ref();
 
 if (props.showUrlPreview && isEnabledUrlPreview.value) {
+	// URL が変わったら古い URL のプレビューを閉じる
+	let previewShowing: Ref<boolean> | null = null;
+	watch(() => props.url, () => {
+		if (previewShowing != null) previewShowing.value = false;
+		previewShowing = null;
+	});
+
 	useTooltip(el, (showing) => {
+		previewShowing = showing;
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
 			url: props.url,
@@ -77,8 +94,6 @@ if (props.showUrlPreview && isEnabledUrlPreview.value) {
 	});
 }
 
-const attr = self ? 'to' : 'href';
-const target = self ? null : '_blank';
 </script>
 
 <style lang="scss" module>

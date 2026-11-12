@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, ref } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import { url as local } from '@@/js/config.js';
 import { maybeMakeRelative, tryParseUrl } from '@@/js/url.js';
 import type { MkABehavior } from '@/components/global/MkA.vue';
@@ -33,26 +34,34 @@ const props = withDefaults(defineProps<{
 // props.url には相対パスや不正な文字列が渡ることがある (inquiryUrl のように、
 // 管理画面が絶対 URL を強制しない設定値が流れてくる)。base 無しの new URL() は
 // そこで throw し、MkLink を描いているコンポーネントごと描画に失敗する。
-const resolvedUrl = tryParseUrl(props.url, local);
-const href = resolvedUrl?.href ?? props.url;
-const isMulukhiyaHome = resolvedUrl?.pathname.startsWith('/mulukhiya') ?? false;
-const maybeRelativeUrl = maybeMakeRelative(href, local);
+const resolvedUrl = computed(() => tryParseUrl(props.url, local));
+const href = computed(() => resolvedUrl.value?.href ?? props.url);
+const isMulukhiyaHome = computed(() => resolvedUrl.value?.pathname.startsWith('/mulukhiya') ?? false);
+const maybeRelativeUrl = computed(() => maybeMakeRelative(href.value, local));
 // 解決できなかった URL を MkA (SPA 内遷移) に渡すと空パスへの router.push になるので、
 // その場合は外部リンク扱いのまま素の値を出す。
-const self = (resolvedUrl != null) && (maybeRelativeUrl !== href) && !isMulukhiyaHome;
-const attr = self ? 'to' : 'href';
-const linkUrl = self ? maybeRelativeUrl : href;
-const target = self ? null : '_blank';
+const self = computed(() => (resolvedUrl.value != null) && (maybeRelativeUrl.value !== href.value) && !isMulukhiyaHome.value);
+const attr = computed(() => (self.value ? 'to' : 'href'));
+const linkUrl = computed(() => (self.value ? maybeRelativeUrl.value : href.value));
+const target = computed(() => (self.value ? null : '_blank'));
 
 const el = ref<HTMLElement | { $el: HTMLElement }>();
 
 if (isEnabledUrlPreview.value) {
+	// URL が変わったら古い URL のプレビューを閉じる
+	let previewShowing: Ref<boolean> | null = null;
+	watch(() => props.url, () => {
+		if (previewShowing != null) previewShowing.value = false;
+		previewShowing = null;
+	});
+
 	useTooltip(el, (showing) => {
 		const anchorElement = el.value instanceof HTMLElement ? el.value : el.value?.$el;
 		if (anchorElement == null) return;
+		previewShowing = showing;
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
-			url: href,
+			url: href.value,
 			anchorElement: anchorElement,
 		}, {
 			closed: () => dispose(),
