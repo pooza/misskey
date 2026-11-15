@@ -72,6 +72,8 @@ git merge <新タグ>            # → "Merge tag '<版>' into merge/<版>"
 
 | 版 | 症状 | 対処 |
 | --- | --- | --- |
+| 2026.10.1（#463） | upstream が `misc/normalize-for-search.ts`（`normalizeForSearch`）を `misc/normalize-tag.ts`（`normalizeTag`）へリネームし、フォーク独自のデフォルトタグ処理（`default-tag.ts` / `SearchService.ts` / `ApNoteService.ts`）が旧名のまま残った。`NoteCreateService.ts` は import の衝突として見えたが、残り 3 ファイルは衝突しない | 参照を `normalizeTag` に置き換える |
+| 2026.10.1（#463） | upstream が MFM 描画を `frontend-shared/js/mfm-renderer.ts` へ、URL の分解を `frontend-shared/js/url.ts` へ移した。フォークの URL 短縮表示（MkMfm / MkUrl）は衝突として出る | 上流版を土台に載せ直す（docs/CLAUDE.md の改変カタログ「その他」） |
 | 2026.9.1（#449） | `CleanRemoteNotesProcessorService` の戻り値に upstream が `cursor` を足したが、フォーク独自の 57014 タイムアウト早期 return には無く、typecheck が落ちた | 早期 return でも保存済みカーソルを返す |
 | 2026.9.0（#437） | upstream が `scripts/check-spdx.mjs` / `check-shipping.mjs` を持ち込んだ。`check-shipping.mjs` は `daisskey` を知らない | `--base origin/daisskey` を付ける旨を shipping-misskey-change に注記 |
 
