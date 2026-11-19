@@ -8,15 +8,20 @@
 // あわせて、ローカルの利用者がそのアカウントへのフォローを外すこと・ブロックすることを拒む。
 // 上流で misskey-dev/misskey#12451 が実装されたら、こちらを捨てて上流の設定へ移す。
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { In, IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { MiMeta, UsersRepository } from '@/models/_.js';
+import type { BlockingsRepository, MiMeta, UsersRepository } from '@/models/_.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
 import * as Acct from '@/misc/acct.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { QueueService } from '@/core/QueueService.js';
 import { bindThis } from '@/decorators.js';
+import type { UserBlockingService } from '@/core/UserBlockingService.js';
+import Logger from '@/logger.js';
+
+const logger = new Logger('auto-follow');
 
 export const AUTO_FOLLOW_ERRORS = {
 	cannotUnfollow: '46489fd9-2721-4761-85ec-3a8d0cba7e4a',
@@ -24,17 +29,29 @@ export const AUTO_FOLLOW_ERRORS = {
 } as const;
 
 @Injectable()
-export class AutoFollowService {
+export class AutoFollowService implements OnModuleInit {
+	private userBlockingService: UserBlockingService;
+
 	constructor(
+		private moduleRef: ModuleRef,
+
 		@Inject(DI.meta)
 		private meta: MiMeta,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 
+		@Inject(DI.blockingsRepository)
+		private blockingsRepository: BlockingsRepository,
+
 		private utilityService: UtilityService,
 		private queueService: QueueService,
 	) {
+	}
+
+	onModuleInit() {
+		// UserBlockingService はこのサービスに依存するので、循環を避けて遅延で取る
+		this.userBlockingService = this.moduleRef.get('UserBlockingService');
 	}
 
 	/**
@@ -76,22 +93,32 @@ export class AutoFollowService {
 
 	/**
 	 * 登録した利用者に、指定したアカウントをフォローさせる
+	 *
+	 * 登録はこの時点で済んでいるので、失敗してもログに残すだけで投げない
+	 * (投げると、メール認証の後始末やサインインが飛ぶ)。漏れた分は一括適用で拾える
 	 */
 	@bindThis
 	public async followOnSignup(user: { id: MiUser['id'] }): Promise<void> {
-		const followees = (await this.fetchUsers()).filter(followee => followee.id !== user.id);
-		if (followees.length === 0) return;
+		try {
+			const followees = (await this.fetchUsers()).filter(followee => followee.id !== user.id);
+			if (followees.length === 0) return;
 
-		await this.queueService.createFollowJob(followees.map(followee => ({
-			from: { id: user.id },
-			to: { id: followee.id },
-		})));
+			await this.queueService.createFollowJob(followees.map(followee => ({
+				from: { id: user.id },
+				to: { id: followee.id },
+			})));
+		} catch (err) {
+			logger.error(`Failed to schedule auto-follow for ${user.id}`, { error: err });
+		}
 	}
 
 	/**
 	 * 既存のローカルの利用者のうち、指定したアカウントをフォローしていない者にフォローさせる
 	 *
 	 * 管理者が一度だけ実行する操作。設定の保存だけでは走らせない
+	 *
+	 * 利用者が指定したアカウントをブロックしているとフォローできないので、そのブロックは外す。
+	 * 指定したアカウント側からのブロックは管理者の判断なので残し、その利用者は対象から外す
 	 *
 	 * @returns フォローのジョブを積んだ件数
 	 */
@@ -101,6 +128,15 @@ export class AutoFollowService {
 		let count = 0;
 
 		for (const followee of followees) {
+			const blockings = await this.blockingsRepository.find({
+				where: { blockeeId: followee.id },
+				relations: { blocker: true },
+			});
+			for (const blocking of blockings) {
+				if (blocking.blocker == null || blocking.blocker.host != null) continue;
+				await this.userBlockingService.unblock(blocking.blocker, followee);
+			}
+
 			const followers = await this.usersRepository.createQueryBuilder('user')
 				.select('user.id')
 				.where('user.host IS NULL')
@@ -108,6 +144,7 @@ export class AutoFollowService {
 				.andWhere('user.isSuspended = FALSE')
 				.andWhere('user.id != :followeeId', { followeeId: followee.id })
 				.andWhere('NOT EXISTS (SELECT 1 FROM "system_account" sa WHERE sa."userId" = "user"."id")')
+				.andWhere('NOT EXISTS (SELECT 1 FROM "blocking" b WHERE b."blockerId" = :followeeId AND b."blockeeId" = "user"."id")', { followeeId: followee.id })
 				.andWhere('NOT EXISTS (SELECT 1 FROM "following" f WHERE f."followerId" = "user"."id" AND f."followeeId" = :followeeId)', { followeeId: followee.id })
 				.getMany();
 
