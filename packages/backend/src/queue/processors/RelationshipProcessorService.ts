@@ -13,6 +13,8 @@ import type Logger from '@/logger.js';
 import type { UsersRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { MiLocalUser, MiRemoteUser } from '@/models/User.js';
+import { AUTO_FOLLOW_ERRORS } from '@/core/AutoFollowService.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { RelationshipJobData } from '../types.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
@@ -50,7 +52,13 @@ export class RelationshipProcessorService {
 			this.usersRepository.findOneByOrFail({ id: job.data.from.id }),
 			this.usersRepository.findOneByOrFail({ id: job.data.to.id }),
 		]) as [MiLocalUser | MiRemoteUser, MiLocalUser | MiRemoteUser];
-		await this.userFollowingService.unfollow(follower, followee, job.data.silent);
+		try {
+			await this.userFollowingService.unfollow(follower, followee, job.data.silent);
+		} catch (err) {
+			// フォーク独自 (pooza/misskey#467): 指定したアカウントへのフォローは外さない。その 1 件だけ飛ばす
+			if (err instanceof IdentifiableError && err.id === AUTO_FOLLOW_ERRORS.cannotUnfollow) return 'skip: auto-follow user';
+			throw err;
+		}
 		return 'ok';
 	}
 
@@ -61,7 +69,13 @@ export class RelationshipProcessorService {
 			this.usersRepository.findOneByOrFail({ id: job.data.from.id }),
 			this.usersRepository.findOneByOrFail({ id: job.data.to.id }),
 		]);
-		await this.userBlockingService.block(blockee, blocker, job.data.silent);
+		try {
+			await this.userBlockingService.block(blockee, blocker, job.data.silent);
+		} catch (err) {
+			// フォーク独自 (pooza/misskey#467): 指定したアカウントはブロックさせない。その 1 件だけ飛ばす
+			if (err instanceof IdentifiableError && err.id === AUTO_FOLLOW_ERRORS.cannotBlock) return 'skip: auto-follow user';
+			throw err;
+		}
 		return 'ok';
 	}
 

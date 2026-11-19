@@ -2959,6 +2959,15 @@ _tagset:
   today: "Today"
   tomorrow: "Tomorrow"
 
+_autoFollow:
+  title: "Users to follow automatically"
+  description: "Users that newly registered users will automatically follow, separated by line breaks. Only users on this server can be specified. Users cannot unfollow or block these users."
+  apply: "Make existing users follow them too"
+  applyConfirm: "All existing users who are not following these users yet will follow them. Save the settings before running this. Are you sure?"
+  applied: "Scheduled {count} follows."
+  cannotUnfollow: "This user is specified by the server and cannot be unfollowed."
+  cannotBlock: "This user is specified by the server and cannot be blocked."
+
 _abuseReport:
   _notificationRecipient:
     createRecipient: "Add recipient for reports"

@@ -111,6 +111,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkFolder>
 				</SearchMarker>
 
+				<!-- フォーク独自 (pooza/misskey#467) -->
+				<SearchMarker v-slot="slotProps" :keywords="['auto', 'follow', 'users']">
+					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
+						<template #icon><SearchIcon><i class="ti ti-user-plus"></i></SearchIcon></template>
+						<template #label><SearchLabel>{{ i18n.ts._autoFollow.title }}</SearchLabel></template>
+						<template v-if="autoFollowUsersForm.modified.value" #footer>
+							<MkFormFooter :form="autoFollowUsersForm"/>
+						</template>
+
+						<div class="_gaps">
+							<MkTextarea v-model="autoFollowUsersForm.state.autoFollowUsers">
+								<template #label>{{ i18n.ts._autoFollow.title }}<span v-if="autoFollowUsersForm.modifiedStates.autoFollowUsers" class="_modified">{{ i18n.ts.modified }}</span></template>
+								<template #caption><SearchText>{{ i18n.ts._autoFollow.description }}</SearchText></template>
+							</MkTextarea>
+
+							<MkButton :disabled="autoFollowUsersForm.modified.value || meta.autoFollowUsers.length === 0" @click="applyAutoFollow"><i class="ti ti-users-plus"></i> {{ i18n.ts._autoFollow.apply }}</MkButton>
+						</div>
+					</MkFolder>
+				</SearchMarker>
+
 				<SearchMarker v-slot="slotProps" :keywords="['serviceWorker']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 						<template #icon><SearchIcon><i class="ti ti-world-cog"></i></SearchIcon></template>
@@ -441,6 +461,29 @@ const pinnedUsersForm = useForm({
 	});
 	fetchInstance(true);
 });
+
+// フォーク独自 (pooza/misskey#467)
+const autoFollowUsersForm = useForm({
+	autoFollowUsers: meta.autoFollowUsers.join('\n'),
+}, async (state) => {
+	const autoFollowUsers = state.autoFollowUsers.split('\n').map(acct => acct.trim()).filter(acct => acct !== '');
+	await os.apiWithDialog('admin/update-meta', {
+		autoFollowUsers,
+	});
+	meta.autoFollowUsers = autoFollowUsers;
+	fetchInstance(true);
+});
+
+async function applyAutoFollow() {
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts._autoFollow.applyConfirm,
+	});
+	if (canceled) return;
+
+	const { count } = await os.apiWithDialog('admin/auto-follow/apply', {});
+	os.toast(i18n.tsx._autoFollow.applied({ count }));
+}
 
 const serviceWorkerForm = useForm({
 	enableServiceWorker: meta.enableServiceWorker,

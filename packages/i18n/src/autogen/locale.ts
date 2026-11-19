@@ -11604,6 +11604,36 @@ export interface Locale extends ILocale {
          */
         "tomorrow": string;
     };
+    "_autoFollow": {
+        /**
+         * 自動でフォローさせるユーザー
+         */
+        "title": string;
+        /**
+         * 新しく登録した利用者に自動でフォローさせるユーザーを改行で区切って記述します。このサーバーのユーザーに限ります。利用者はこれらのユーザーのフォローを解除できず、ブロックもできません。
+         */
+        "description": string;
+        /**
+         * 既存の利用者にもフォローさせる
+         */
+        "apply": string;
+        /**
+         * まだフォローしていない既存の利用者全員に、これらのユーザーをフォローさせます。設定を保存してから実行してください。よろしいですか？
+         */
+        "applyConfirm": string;
+        /**
+         * {count}件のフォローを予約しました。
+         */
+        "applied": ParameterizedString<"count">;
+        /**
+         * このユーザーはサーバーが指定しているため、フォローを解除できません。
+         */
+        "cannotUnfollow": string;
+        /**
+         * このユーザーはサーバーが指定しているため、ブロックできません。
+         */
+        "cannotBlock": string;
+    };
     "_moderationLogTypes": {
         /**
          * ジョブキューをクリア

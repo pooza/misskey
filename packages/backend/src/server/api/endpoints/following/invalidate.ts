@@ -94,7 +94,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.notFollowing);
 			}
 
-			await this.userFollowingService.unfollow(follower, followee);
+			// フォーク独自 (pooza/misskey#467): フォローされている側が外す操作なので、指定したアカウントでも通す
+			await this.userFollowingService.unfollow(follower, followee, false, true);
 
 			return await this.userEntityService.pack(follower.id, me);
 		});
