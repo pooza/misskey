@@ -283,7 +283,8 @@ export class AccountMoveService {
 		// Have the proxy account follow the new account in the same way as UserListService.push
 		if (this.userEntityService.isRemoteUser(dst)) {
 			const proxy = await this.systemAccountService.fetch('proxy');
-			this.queueService.createFollowJob([{ from: { id: proxy.id }, to: { id: dst.id } }]);
+			// リモートユーザーのフォローは行わない (#344 / #468)
+			// this.queueService.createFollowJob([{ from: { id: proxy.id }, to: { id: dst.id } }]);
 		}
 	}
 
