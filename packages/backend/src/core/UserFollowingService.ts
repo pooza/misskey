@@ -28,6 +28,7 @@ import { CacheService } from '@/core/CacheService.js';
 import type { Config } from '@/config.js';
 import { AccountMoveService } from '@/core/AccountMoveService.js';
 import { UtilityService } from '@/core/UtilityService.js';
+import { AutoFollowService, AUTO_FOLLOW_ERRORS } from '@/core/AutoFollowService.js';
 import type { ThinUser } from '@/queue/types.js';
 import Logger from '../logger.js';
 
@@ -85,6 +86,7 @@ export class UserFollowingService implements OnModuleInit {
 		private webhookService: UserWebhookService,
 		private apRendererService: ApRendererService,
 		private accountMoveService: AccountMoveService,
+		private autoFollowService: AutoFollowService,
 		private perUserFollowingChart: PerUserFollowingChart,
 		private instanceChart: InstanceChart,
 	) {
@@ -368,7 +370,13 @@ export class UserFollowingService implements OnModuleInit {
 			id: MiUser['id']; host: MiUser['host']; uri: MiUser['host']; inbox: MiUser['inbox']; sharedInbox: MiUser['sharedInbox'];
 		},
 		silent = false,
+		force = false,
 	): Promise<void> {
+		// フォーク独自 (pooza/misskey#467): 指定したアカウントへのローカルの利用者のフォローは外さない
+		if (!force && await this.autoFollowService.isProtected(follower, followee)) {
+			throw new IdentifiableError(AUTO_FOLLOW_ERRORS.cannotUnfollow, 'Cannot unfollow the user specified by the server.');
+		}
+
 		const following = await this.followingsRepository.findOne({
 			relations: {
 				follower: true,

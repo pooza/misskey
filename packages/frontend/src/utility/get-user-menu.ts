@@ -80,6 +80,11 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 
 		os.apiWithDialog(user.isBlocking ? 'blocking/delete' : 'blocking/create', {
 			userId: user.id,
+		}, undefined, {
+			// フォーク独自 (pooza/misskey#467): サーバーが指定したアカウントはブロックできない
+			'63afc628-3d8b-41d6-bf02-f180826faeab': {
+				text: i18n.ts._autoFollow.cannotBlock,
+			},
 		}).then(() => {
 			user.isBlocking = !user.isBlocking;
 		});

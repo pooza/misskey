@@ -170,6 +170,13 @@ async function onClick() {
 		}
 	} catch (err) {
 		console.error(err);
+		// フォーク独自 (pooza/misskey#467): サーバーが指定したアカウントはフォローを解除できない
+		if ((err as Partial<Misskey.api.APIError> | null)?.code === 'CANNOT_UNFOLLOW_AUTO_FOLLOW_USER') {
+			os.alert({
+				type: 'error',
+				text: i18n.ts._autoFollow.cannotUnfollow,
+			});
+		}
 	} finally {
 		wait.value = false;
 	}

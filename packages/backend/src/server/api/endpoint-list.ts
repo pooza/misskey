@@ -23,6 +23,7 @@ export * as 'admin/ad/create' from './endpoints/admin/ad/create.js';
 export * as 'admin/ad/delete' from './endpoints/admin/ad/delete.js';
 export * as 'admin/ad/list' from './endpoints/admin/ad/list.js';
 export * as 'admin/ad/update' from './endpoints/admin/ad/update.js';
+export * as 'admin/auto-follow/apply' from './endpoints/admin/auto-follow/apply.js';
 export * as 'admin/announcements/create' from './endpoints/admin/announcements/create.js';
 export * as 'admin/announcements/delete' from './endpoints/admin/announcements/delete.js';
 export * as 'admin/announcements/list' from './endpoints/admin/announcements/list.js';

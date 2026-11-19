@@ -21,6 +21,8 @@ import { UserWebhookService } from '@/core/UserWebhookService.js';
 import { bindThis } from '@/decorators.js';
 import { CacheService } from '@/core/CacheService.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
+import { AutoFollowService, AUTO_FOLLOW_ERRORS } from '@/core/AutoFollowService.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 
 @Injectable()
 export class UserBlockingService implements OnModuleInit {
@@ -56,6 +58,7 @@ export class UserBlockingService implements OnModuleInit {
 		private webhookService: UserWebhookService,
 		private apRendererService: ApRendererService,
 		private loggerService: LoggerService,
+		private autoFollowService: AutoFollowService,
 	) {
 		this.logger = this.loggerService.getLogger('user-block');
 	}
@@ -66,11 +69,18 @@ export class UserBlockingService implements OnModuleInit {
 
 	@bindThis
 	public async block(blocker: MiUser, blockee: MiUser, silent = false) {
+		// フォーク独自 (pooza/misskey#467): 指定したアカウントはローカルの利用者からブロックさせない
+		// (ブロックするとフォローが外れる。ブロックしたのにフォローが残る、という矛盾も作らない)
+		if (await this.autoFollowService.isProtected(blocker, blockee)) {
+			throw new IdentifiableError(AUTO_FOLLOW_ERRORS.cannotBlock, 'Cannot block the user specified by the server.');
+		}
+
 		await Promise.all([
 			this.cancelRequest(blocker, blockee, silent),
 			this.cancelRequest(blockee, blocker, silent),
 			this.userFollowingService.unfollow(blocker, blockee, silent),
-			this.userFollowingService.unfollow(blockee, blocker, silent),
+			// 指定したアカウント自身が利用者をブロックしたときは、利用者からのフォローも外す
+			this.userFollowingService.unfollow(blockee, blocker, silent, true),
 			this.removeFromList(blockee, blocker),
 			this.removeRoomInvitations(blocker, blockee),
 			this.removeRoomInvitations(blockee, blocker),

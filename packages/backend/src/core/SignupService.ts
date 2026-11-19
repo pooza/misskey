@@ -22,6 +22,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserService } from '@/core/UserService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { MetaService } from '@/core/MetaService.js';
+import { AutoFollowService } from '@/core/AutoFollowService.js';
 
 @Injectable()
 export class SignupService {
@@ -44,6 +45,7 @@ export class SignupService {
 		private idService: IdService,
 		private systemAccountService: SystemAccountService,
 		private metaService: MetaService,
+		private autoFollowService: AutoFollowService,
 		private usersChart: UsersChart,
 	) {
 	}
@@ -169,6 +171,9 @@ export class SignupService {
 		if (this.meta.rootUserId == null) {
 			await this.metaService.update({ rootUserId: account.id });
 		}
+
+		// フォーク独自 (pooza/misskey#467): 指定したアカウントを自動でフォローさせる
+		await this.autoFollowService.followOnSignup(account);
 
 		return { account, secret };
 	}

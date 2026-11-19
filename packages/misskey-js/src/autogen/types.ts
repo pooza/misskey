@@ -160,6 +160,15 @@ export type paths = {
          */
         post: operations['admin___announcements___update'];
     };
+    '/admin/auto-follow/apply': {
+        /**
+         * admin/auto-follow/apply
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['admin___auto-follow___apply'];
+    };
     '/admin/avatar-decorations/create': {
         /**
          * admin/avatar-decorations/create
@@ -7008,6 +7017,75 @@ export interface operations {
             };
         };
     };
+    'admin___auto-follow___apply': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        count: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'admin___avatar-decorations___create': {
         requestBody: {
             content: {
@@ -9465,6 +9543,7 @@ export interface operations {
                         silencedHosts?: string[];
                         mediaSilencedHosts: string[];
                         pinnedUsers: string[];
+                        autoFollowUsers: string[];
                         hiddenTags: string[];
                         blockedHosts: string[];
                         sensitiveWords: string[];
@@ -12959,6 +13038,7 @@ export interface operations {
                 'application/json': {
                     disableRegistration?: boolean | null;
                     pinnedUsers?: string[] | null;
+                    autoFollowUsers?: string[] | null;
                     hiddenTags?: string[] | null;
                     blockedHosts?: string[] | null;
                     sensitiveWords?: string[] | null;

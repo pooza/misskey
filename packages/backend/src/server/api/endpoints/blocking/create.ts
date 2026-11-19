@@ -11,6 +11,8 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { AUTO_FOLLOW_ERRORS } from '@/core/AutoFollowService.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -42,6 +44,14 @@ export const meta = {
 			message: 'You are already blocking that user.',
 			code: 'ALREADY_BLOCKING',
 			id: '787fed64-acb9-464a-82eb-afbd745b9614',
+		},
+
+		// フォーク独自 (pooza/misskey#467)
+		cannotBlockAutoFollowUser: {
+			message: 'This user is specified by the server and cannot be blocked.',
+			code: 'CANNOT_BLOCK_AUTO_FOLLOW_USER',
+			id: '63afc628-3d8b-41d6-bf02-f180826faeab',
+			httpStatusCode: 403,
 		},
 	},
 
@@ -99,7 +109,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.alreadyBlocking);
 			}
 
-			await this.userBlockingService.block(blocker, blockee);
+			await this.userBlockingService.block(blocker, blockee).catch(err => {
+				if (err instanceof IdentifiableError && err.id === AUTO_FOLLOW_ERRORS.cannotBlock) throw new ApiError(meta.errors.cannotBlockAutoFollowUser);
+				throw err;
+			});
 
 			return await this.userEntityService.pack(blockee.id, blocker, {
 				schema: 'UserDetailedNotMe',

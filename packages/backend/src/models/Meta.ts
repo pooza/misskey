@@ -73,6 +73,12 @@ export class MiMeta {
 	})
 	public pinnedUsers: string[];
 
+	// フォーク独自 (pooza/misskey#467): 登録時に自動でフォローさせ、ローカルの利用者からの解除・ブロックに応じないアカウント
+	@Column('varchar', {
+		length: 1024, array: true, default: '{}',
+	})
+	public autoFollowUsers: string[];
+
 	@Column('varchar', {
 		length: 1024, array: true, default: '{}',
 	})
