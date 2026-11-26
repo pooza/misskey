@@ -157,6 +157,7 @@ defaultTag:
 | `frontend/src/components/global/MkUrl.vue` + `MkMfm.ts` | 本文中の URL を短縮表示する（`shorten`: スキーマ・クエリ・ハッシュを省き、パスを 16 文字で省略）。MkMfm が `MkUrl` を `shorten: true` 付きで包んで描画部に渡す。⚠ 描画部 `frontend-shared/js/mfm-renderer.ts` は埋め込み（EmMfm）と共有なので、そちらには手を入れない（2026.10.1・#463） |
 | `backend/src/core/MfmService.ts` の `toHtml` | Mastodon 互換のため段落を `<p>` で囲む（#403）。⚠ upstream の `test/unit/MfmService.ts` / `ApMfmService.ts` の 6 件はこれに追随しておらず、**既知の失敗**（BASELINE） |
 | `frontend/src/utility/get-note-menu.ts` | ノートメニューからモロヘイヤの status 画面を開く |
+| `backend/src/core/UserFollowingService.ts` の `follow` | **プロキシアカウントには誰もフォローさせない**（#344 / #468）。上流はリスト追加・アカウントの引っ越しでプロキシアカウントにリモートユーザーをフォローさせる。呼び出し元（`UserListService.addMember` / `copyMemberships`）でもコメントアウトしてあるが、2026.11.1 で処理が `AccountMoveService` から `UserListService` へ移って復活しかけたので、フォローの入口でも止めている。テストは `test/unit/UserFollowingService.proxy.ts` |
 | `frontend/src/ui/_common_/navbar.vue` ほか | インスタンス branding |
 | `frontend/src/pages/admin/custom-emojis-manager2.vue` | カスタム絵文字管理の独自版 |
 | `locales/{ja-JP,en-US}.yml` の `_tagset` 等 | フォーク独自の i18n キー（[AGENTS.md](../AGENTS.md) の locale 例外を参照） |
