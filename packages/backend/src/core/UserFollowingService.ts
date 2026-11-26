@@ -29,6 +29,7 @@ import type { Config } from '@/config.js';
 import { AccountMoveService } from '@/core/AccountMoveService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { AutoFollowService, AUTO_FOLLOW_ERRORS } from '@/core/AutoFollowService.js';
+import { SystemAccountService } from '@/core/SystemAccountService.js';
 import type { ThinUser } from '@/queue/types.js';
 import Logger from '../logger.js';
 
@@ -87,6 +88,7 @@ export class UserFollowingService implements OnModuleInit {
 		private apRendererService: ApRendererService,
 		private accountMoveService: AccountMoveService,
 		private autoFollowService: AutoFollowService,
+		private systemAccountService: SystemAccountService,
 		private perUserFollowingChart: PerUserFollowingChart,
 		private instanceChart: InstanceChart,
 	) {
@@ -119,6 +121,15 @@ export class UserFollowingService implements OnModuleInit {
 			this.usersRepository.findOneByOrFail({ id: _follower.id }),
 			this.usersRepository.findOneByOrFail({ id: _followee.id }),
 		]) as [MiLocalUser | MiRemoteUser, MiLocalUser | MiRemoteUser];
+
+		// フォーク独自 (pooza/misskey#344 / #468): プロキシアカウントには誰もフォローさせない。
+		// 上流はリストへの追加やアカウントの引っ越しでプロキシアカウントにリモートユーザーをフォローさせるが、
+		// 呼び出し元を 1 か所ずつ止めても上流の追従で別の場所に現れる (2026.11.1 で UserListService へ移った) ので、
+		// フォローの入口で止める。キューのジョブから来ても再試行させないよう、例外にせず黙って終える。
+		if (this.userEntityService.isLocalUser(follower) && follower.id === (await this.systemAccountService.fetch('proxy')).id) {
+			logger.warn(`Skipped a follow by the proxy account: ${followee.id}`);
+			return;
+		}
 
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isRemoteUser(followee)) {
 			// What?

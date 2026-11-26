@@ -78,6 +78,7 @@ git merge <新タグ>            # → "Merge tag '<版>' into merge/<版>"
 | 2026.9.0（#437） | upstream が `scripts/check-spdx.mjs` / `check-shipping.mjs` を持ち込んだ。`check-shipping.mjs` は `daisskey` を知らない | `--base origin/daisskey` を付ける旨を shipping-misskey-change に注記 |
 
 | 2026.11.0 | 上流が `compile-config` を撤去し、この skill の check-migrations 手順がそのままでは動かなくなった | `MISSKEY_CONFIG_YML=test.yml` で設定を差し替える（§4） |
+| 2026.11.1（#471） | upstream がリスト登録の引き継ぎを `AccountMoveService.updateLists` から `UserListService.copyMemberships` へ移し、#468 で止めたプロキシアカウントのフォロー（`createFollowJob`）が移動先で復活した。`AccountMoveService` 側は衝突として見えるが、移動先は自動マージされる | 移動先もコメントアウトし、`UserFollowingService.follow` の入口でプロキシアカウントのフォローを止める関所を置いた（どこから呼ばれても効く） |
 | 2026.11.0 | 依存（`etiket`）が `node >=24` を要求し、Node 22 では `pnpm install` が `ERR_PNPM_UNSUPPORTED_ENGINE` で落ちた | 手元も `.node-version` の版で回す。⚠ Node 25 以降は corepack が同梱されないので `npm i -g corepack && corepack enable pnpm` |
 
 新しく踏んだらこの表に足す。
